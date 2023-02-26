@@ -1,0 +1,240 @@
+I downloaded the zipfile.pdf. Since the problem description mentioned it was a polyglot file, I ran the file command against the file:
+
+zipfile.pdf: NES ROM image (iNES): 1x16k PRG, 1x8k CHR [H-mirror]
+
+So it looks like this is an NES rom this time. But I was able to open the file as a pdf too (The pdf was an NES manual). I downloaded an NES emulator (I used nestopia at first just to check it out). The game showed a password prompt. I tried different keys and found that the following characters were valid:
+
+A, B, {, }, [UP], [DOWN], [LEFT], [RIGHT]
+
+Next I decided to run strings against the file and I got the following interesting strings:
+
+1. tail -c +24592 zipfile.pdf | head -c 12761
+2. (Large ascii art of CC SW logo)
+3. Mesen.exe
+4. doc.pdf
+5. (bunch of strings related to pdf files)
+
+The tail command seemed interesting so I ran that against the zip file and it printed out the ascii art of the CC SW logo. I searched for "mesen" and it turned out to be an NES emulator. I did some other searches for PDF polyglot info and eventually I stumbled upon a GitHub repo that had some code to embed a zip file in a pdf file (https://github.com/perfaram/pdf-zip-nes-polyglot/blob/master/gen_poly.py). The code first embedded a header file (the code used an NES rom as an example). Then it embedded some message text (the ascii art in our case). Finally, it embedded a zip file. Based on the similarities, I'm guessing this code was used to create this problem.
+
+I unzipped the zipfile.pdf and it extracted two files, both of which appeared as strings before:
+1. doc.pdf
+2. Mesen.exe
+
+Mesen.exe was useful because it was a way better emulator than nestopia. It has full debugging with breakpoints and a live RAM view/editor.
+
+Next, I wanted to extract only the rom portion from the pdf so I opened it up in a hex editor and dumped the bytes from the beginning to the start of the ascii message. Now I had the rom by itself and I opened it up in ghidra. I used a ghidra NES extension so it could be properly disassembled (https://github.com/kylewlacy/GhidraNes). I had to tweak the ghidra extension so its version matched up with my ghidra version so it would load properly. 
+
+Once loaded, I found the entry point (labeled reset):
+
+void reset(void)
+{
+  char cVar1;
+  undefined uVar2;
+  byte bVar3;
+  short sVar4;
+  
+  write_1(DAT_4017,0x40);
+  sVar4 = CONCAT11((char)((ushort)&stack0x0000 >> 8),0xff);
+  uVar2 = 0;
+  *(undefined2 *)(sVar4 + -1) = 0xc00e;
+  FUN_c278(0);
+  *(undefined2 *)(sVar4 + -1) = 0xc011;
+  FUN_c27e();
+  write_1(DAT_4010,uVar2);
+  do {
+    cVar1 = read_1(DAT_2002);
+  } while (-1 < cVar1);
+  do {
+    cVar1 = read_1(DAT_2002);
+  } while (-1 < cVar1);
+  bVar3 = 0;
+  do {
+    *(undefined *)(ushort)bVar3 = 0;
+    *(undefined *)(bVar3 + 0x100) = 0;
+    *(undefined *)(bVar3 + 0x300) = 0;
+    *(undefined *)(bVar3 + 0x400) = 0;
+    *(undefined *)(bVar3 + 0x500) = 0;
+    *(undefined *)(bVar3 + 0x600) = 0;
+    *(undefined *)(bVar3 + 0x700) = 0;
+    *(undefined *)(bVar3 + 0x200) = 0xfe;
+    bVar3 = bVar3 + 1;
+  } while (bVar3 != 0);
+  *(undefined2 *)(sVar4 + -1) = 0xc04b;
+  FUN_c284(0,0,0);
+  *(undefined2 *)(sVar4 + -1) = 0xc04e;
+  FUN_c29f();
+  write_1(irq,0xe4);
+  write_1(DAT_0001,0xc2);
+  *(undefined2 *)(sVar4 + -1) = 0xc059;
+  FUN_c2b6(0xc2);
+  *(undefined2 *)(sVar4 + -1) = 0xc05c;
+  FUN_c26c();
+  do {
+    do {
+      cVar1 = read_1(DAT_0010);
+    } while (cVar1 == '\0');
+    *(undefined2 *)(sVar4 + -1) = 0xc063;
+
+    // interesting function that is doing some XORs and comparisons
+    decode_func();
+
+    *(undefined2 *)(sVar4 + -1) = 0xc066;
+    FUN_c069();
+  } while( true );
+}
+
+I skipped over most of the beginning of the reset function because it didn't look too interesting (looked like setup stuff). But towards the end there was an infinite do while loop (game loop). Out of everything that happens in this loop, the most interesting call was the decode_func. This function was doing some XORs and comparisons. See below for the commented decode_func:
+
+undefined decode_func(void)
+{
+  ushort uVar1;
+  char input_key_loc;
+  byte i;
+  byte j;
+  char cStack0000;
+  
+  // initial location where we store the decoded output
+  _decoded_loc = 0x400;
+
+  // initial location where the encoded bytes are (4 sections of 256 bytes each)
+  _encoded_loc = &UNK_c6e4;
+  
+  // counter for each section of 256 bytes
+  cStack0000 = '\x04';
+
+  // base address of where the user input is stored (base addr + 2 up to 8 bytes)
+  input_key_loc = '\0';
+  do {
+    i = 0;
+    do {
+      // take each byte of the user input and XOR it with the encoded bytes and store it in the decoded location
+      *(byte *)(_decoded_loc + i) = _encoded_loc[i] ^ *(byte *)(ushort)(byte)(input_key_loc + 2);
+      
+      // next user input byte
+      input_key_loc = input_key_loc + '\x01';
+
+      // upto 8 bytes and then cycle back to first byte
+      if (input_key_loc == '\b') {
+        input_key_loc = '\0';
+      }
+
+      // keep going until we overflow back to 0 (256 bytes)
+      i = i + 1;
+    } while (i != 0);
+
+    // update pointers for encoded and decoded locations so we can decode the next section
+    _encoded_loc = (undefined *)((ushort)_encoded_loc & 0xff | (ushort)(byte)(DAT_0025 + 1) << 8);
+    uVar1 = _decoded_loc & 0xff;
+    _decoded_loc = uVar1 | (ushort)(byte)(DAT_0027 + 1) << 8;
+    
+    // do this process 4 times to decode all 1024 bytes
+    cStack0000 = cStack0000 + -1;
+  } while (cStack0000 != '\0');
+
+  // reset decoded location back to it original start location
+  _decoded_loc = CONCAT11(4,(char)uVar1);
+  cStack0000 = '\x04';
+  i = 0;
+  do {
+    j = 0;
+    do {
+      // check each set of 8 contiguous bytes in the decoded location against the 8 bytes at 0xcb48
+      if (*(char *)(_decoded_loc + j) == (&UNK_cb48)[i]) {
+        i = i + 1;
+        if (i == 8) {
+          write_1(DAT_000a,4);
+          
+          // if all 8 match we enter an infinite loop. This is how we know we got the right key in user input.
+          do {
+                    /* WARNING: Do nothing block with infinite loop */
+          } while( true );
+        }
+      }
+      else {
+        i = 0;
+      }
+      j = j + 1;
+    } while (j != 0);
+
+    // update decoded location pointer to next section
+    _decoded_loc = _decoded_loc & 0xff | (ushort)(byte)(DAT_0027 + 1) << 8;
+    
+    // again we do this 4 time, check for matches in each decoded section
+    cStack0000 = cStack0000 + -1;
+  } while (cStack0000 != '\0');
+  write_1(DAT_0010,0);
+  return 0;
+}
+
+In summary, the decode_func is taking the 8 bytes of user input and XORing them with the bytes at 0xc6e4 and storing the result at 0x400. Then it is checking the decode bytes (8 bytes at a time) against the 8 bytes located at 0xcb48. If all 8 match then the game ends and we get the flag.
+
+We know there are 8 possible user inputs: A, B, {, }, [UP], [DOWN], [LEFT], [RIGHT]. I tried these values and looked at the RAM view in Mesen to get their corresponding hex values. Now I know that the 8 bytes starting at 0xcb48 (bytes used to check to enter infinite loop) XORed with each possible contiguous set of 8 bytes starting at 0xc6e4 (encoded location) will yield at least one set of 8 bytes such that each of those bytes is a valid value that the user can enter. If I find the location that satisfies that condition, then I've found the key. So I wrote a script to do that:
+
+import sys
+
+# ripped from the rom (1024 bytes from 0xc6e4)
+encoded_bytes = [
+    bytes.fromhex(
+        "a4875abf9b24abce6156ea4c9e3d440a762bb7bf9fd52a04b3877adf48fa9027979ebb5296d69220605651fe047b4b2671b494446721c86337bc5a5e04179138b36f7f1ea322da83d4bf4bff6a2540d282caaf53850e9aa07051b4dd879b4ab1a4428c7a6b176a61368ffb415daaa63d89528a5d661a7a06b77fad7db76aca065eab596bc4fa9ac58746b3a99810380bc708437e656b91f01794683d8f8a3b3f272b6a446fc33bd3679e1a42c6c0481f84a58f7f53efbde4040af83e142b453c7759b14761ee529187b678b9c7ce495148a95aa797ca4ac5d75e49a25bca5e26068d5a0e37ffcb4192a51b3f27c85809a6b452ff5ec94ac162585b81041b9a80"
+    ),
+    bytes.fromhex(
+        "605245ae262f9c348a0b581fb61255c3344aa9dfd41f28c0e6cb55cf85c6fbb0c645bf4c713cab8107e87baa951a9de19b81fba89f78bab38aa5bc9f632690615b42802e765b49e46d82b381a42f84c2995e454648c9dbb371b7ad2d8e1a0bc9a48dcb5bb22618cf70a955824100867f5a99a185520fb0197e8e96964d07b0026c8e9880520db0117e8ea39b4a32950540888e8c4c0f852f52a19f9b5909802d529690897e20e7ce65ab4eac9a4a6bf117086b2e9f5b2bce845b38a4e64ae8c28fb46acfd4275750d4478d1d75cb185353aa083d6d28b5c58cb1fbbf563c5ed98642ea0ef78a4ede63188f5bc7de56a39e1b554c5ed3a7816608b3ce6ad641de"
+    ),
+    bytes.fromhex(
+        "9b947b3e79bb8ea18e8db6429a1b59e5d4818da614b82b3398b9dbae6a2eaecd644bbfa89eba388068ebf85185c66be0b7780a6bf4c7afd350185b2fe66847a15d1bbc6f279838f5c67eafa45ec2a65099c8b71d928b7f3f77bb55a35d5aeb27a7ba7a438422280960b93bb08c29fa535c4b4a47618a4480e75287ef5b7aaef1b38aaa0ec7789da3d62a7a1ee61ba8511778bb9a88aba1d3f4a9874f8d2dbb2724a952de6ec1fa21945368476b58443567b1ca4b6b0e48cf6658e8de946a48e356ad7e408cd37b226a8758a28f114ef5f48d0a475bab38e3573a7f7f94106eb17955821e941c840104a5789276ce8e53893a6a1d5625f8cf79ab8cb05b3db527"
+    ),
+    bytes.fromhex(
+        "17b71a6a42283b0987bd3a9873297f33840a8d8b6712ea1f8e2aa552c61a1a91a2dab7ff6129a4cf57b649bea6886b43e4ab5e1d07daebe0a753452d14c3ad392655465eb33578e084456f4b9aa8ebc9639e558ba7dbfa385149497af427460ce4e8fbff6bba4e0c847f54ae683b1bcd95bdf82d8ddeafd868b543928aba4b5326bd574285e847915baf484327bbbcd9797a578b614aeb34753bda7a36fff843b694b1ed75d3840089eb823e82883af16fb7467ac70ea23736b3947f06122b3c75b8ea6e5c1243f357b5aa6e6f6a3a31a20b6f945e0ea4c8687e424f654b7a3d61429e7e99b892dc604bbdce615b572496458a3f857b7b53652bb1afc723a281"
+    ),
+]
+
+# what we will xor with the sections (8 bytes at 0xcb48)
+check_bytes = bytes.fromhex("262c212745372810")
+
+# each value corresponds with a valid key you can press on the NES. The password must be made up of this charset.
+valid_byteset_alt = [201, 58, 164, 177, 33, 43, 109, 161]
+
+
+def byte_xor(ba1, ba2):
+    return bytes([_a ^ _b for _a, _b in zip(ba1, ba2)])
+
+
+def check_bytes_valid(test_bytes):
+    for b in test_bytes:
+        if b not in valid_byteset_alt:
+            return False
+    return True
+
+
+if __name__ == "__main__":
+    for i in range(0, 256 - 8):
+        for j, section in enumerate(encoded_bytes):
+            slice = section[i : i + 8]
+            check_chunk = byte_xor(slice, check_bytes)
+            print(f"Checking: {slice.hex()}")
+            if check_bytes_valid(check_chunk):
+                print(f"Success: {check_chunk.hex()}, slice:{i}, section:{j}")
+                sys.exit(0)
+
+Running this code, I found the spot where we would match if we had the right key:
+
+Success: a46d21a13a6db1b1, slice:107, section:1
+
+a4 6d 21 a1 3a 6d b1 b1 corresponds to the hex values of the key when entered into the game. However, the code checks this byte by byte for matches while the key is XORed in 8 bytes chunks over and over. So this output is not in the right order and needs to be shifted. Specifically, this match was found at offset 0x6b in the section and the prior 8 byte boundary would have been 0x68. So the key would have started at 0x68 and repeated. Kind of tough to explain so here is a diagram:
+
+0x68 ? -> 6d
+0x69 ? -> b1
+0x6a ? -> b1
+
+0x6b a4
+0x6c 6d
+0x6d 21
+0x6e a1
+0x6f 3a
+0x70 6d
+0x71 b1
+0x72 b1
+
+So the key is actually: 6d b1 b1 a4 6d 21 a1 3a. And these values correspond to [LEFT] B B A [LEFT] [UP] [RIGHT] }. When I enter that, I get the flag:
+
+FLAG{WH0A_N1C3_GR@F1X!_ID_L1K3_2_G3T_MY_HAND5_0N_THA7_GAM3!}

@@ -1,0 +1,248 @@
+Solution:
+flag{s0m30n3_wh0_c@nn0t_b3_pr3y3d_up0n}
+
+The first thing I did after downloading the binary in this problem was to run it through strings to see if there was anything interesting. Two strings jumped out at me:
+1. @r3_y0u_r3@dy?_g3t_up,_g3t_up_g3t_up,_g3t...
+2. flag{
+
+The first string turned out to be lyrics to a Disturbed song. I had a hunch that it would be part of the flag.
+The second string looked like the beginning of the flag format. So it would be something I would look for when I run it through Ghidra.
+
+I opened up the binary in Ghidra and navigated to the entry point. I found a function call towards the end and navigated to it and immediately saw the first string listed above in the decompile view. So I knew this was likely the function I would need to look in. Towards the end of the function was a prinf call with the format string "%s%.*s%s\n". There was another print statement that looked like it would print an error code. The remainder of the body of the function consisted of a number of branches. I began renaming the variables based on their usage in the format string in the printf call. Here's what I got for the decompilation after doing this:
+
+int __cdecl FUN_00401000(int param_1,int param_2)
+{
+  int text_offset;
+  int selection_val;
+  undefined4 print_len;
+  char *text;
+  undefined *flag_end;
+  char *flag_start;
+  
+  text = "";
+  print_len = 0;
+  text_offset = 0;
+  flag_start = "";
+  flag_end = &DAT_004020d0;
+  selection_val = 1;
+  if (param_1 == 2) {
+    selection_val = atoi(*(char **)(param_2 + 4));
+    text = 
+    "@r3_y0u_r3@dy?_g3t_up,_g3t_up_g3t_up,_g3t_up_g3t_up,_g3t_up__g3t_up,_g3t_up_g3t_up,_g3t_up_g3t_ up,_g3t_up__w3ll,_@r3_y0u_r3@dy_n0w?_f0r_th3_r3v0luti0n_f0r_t00_l0ng_y0ur_p0w3r_h@s_b33n_t@k3n_@ w@y_it\'s_b33n_t@k3n_@w@y_d03s_y0ur_h3@rt_f33l_h3@vy_n0w_s@v0r_th3_s0luti0n_t@k3_th0s3_m3nt@l_sh @ckl3s_0ff_@nd_thr0w_th3m_@w@y_y0u\'v3_g0t_t0_g3t_th3m_0ut_0f_y0ur_mind_d0n\'t_y0u_l3t_th3ir_vis i0n_l3@v3_y0u_blind__m0ving_st3@dy_n0w_it\'s_@_r3v3l@ti0n_f0r_s0_l0ng_y0ur_f0cus_h@s_b33n_t@k3n_ @w@y_n0w_y0u\'r3_br3@king_@w@y_th3y_think_th3y_kn0w_y0u_but_h3r3\'s_@n_3duc@ti0n_n0_th3y_c@n\'t_ c0ntr0l_y0u_0nc3_y0u\'v3_br0k3n_@w@y_th3y\'r3_d0n3_p@tr0lling_y0ur_mind_wh3n_th3y\'r3_s3@rching_ f0r_y0u,_th3y_will_find_@_f0rc3_th3y_@r3n\'t_r3@dy_f0r__@r3_y0u_r3@dy?_th3y_@r3n\'t_r3@dy_f0r_y0 u_t0_b3_str0ng_@r3_y0u_r3@dy?_th3y_@r3n\'t_r3@dy_f0r_y0u_t0_pr0v3_th3m_wr0ng_@r3_y0u_r3@dy?_th3y _@r3n\'t_r3@dy_f0r_y0u_t0_b3_turn3d_int0_s0m30n3_wh0_c@nn0t_b3_pr3y3d_up0n__th@t\'s_3n0ugh_@lr3@ dy_n0w_y0u_d0n\'t_w@nt_t0_t@k3_it_@ll_y0ur_r3s3rv@ti0ns_h@v3_b33n_t@k3n_@w@y_th3y\'v3_b33n_t@k3n _@w@y_s0_y0u_think_y0u\'r3_r3@dy_n0w_f0r_th3_r3v0luti0n_y3@h,_th3y_c@n\'t_c0ntr0l_y0u_0nc3_y0u\' v3_br0k3n_@w@y_y0u\'v3_g0t_t0_g3t_th3m_0ut_0f_y0ur_mind_wh3n_th3y_st@nd_b3f0r3_y0u_th3y_will_fin d_@_f0rc3_th3y_@r3n\'t_r3@dy_f0r__@r3_y0u_r3@dy?_th3y_@r3n\'t_r3@dy_f0r_y0u_t0_b3_str0ng_@r3_y0u _r3@dy?_th3y_@r3n\'t_r3@dy_f0r_y0u_t0_pr0v3_th3m_wr0ng_@r3_y0u_r3@dy?_th3y_@r3n\'t_r3@dy_f0r_y0u _t0_b3_turn3d_int0_s0m30n3_wh0_c@nn0t_b3_pr3y3d_up0n__@r3_y0u_r3@dy?__y0u_g0t_t0_g3t_th3m_0ut_0f _y0ur_mind_wh3n_th3y_st@nd_b3f0r3_y0u_th3y_will_find_@_f0rc3_th3y_@r3n\'t_r3@dy_f0r__@r3_y0u_r3@ dy?_th3y_@r3n\'t_r3@dy_f0r_y0u_t0_b3_str0ng_@r3_y0u_r3@dy?_th3y_@r3n\'t_r3@dy_f0r_y0u_t0_pr0v3_t h3m_wr0ng_@r3_y0u_r3@dy?_th3y_@r3n\'t_r3@dy_f0r_y0u_t0_b3_turn3d_int0_s0m30n3_wh0_c@nn0t_b3_pr3y 3d_up0n__@r3_y0u_r3@dy?_th3y_@r3n\'t_r3@dy_f0r_us_t0_b3_str0ng_@r3_y0u_r3@dy?_th3y_@r3n\'t_r3@dy _f0r_us_t0_pr0v3_th3m_wr0ng_@r3_y0u_r3@dy?_l3t_m3_kn0w_y0u\'r3_r3@dy_f0r_y0u_t0_b3_turn3d_int0_p 30pl3_wh0_c@nn0t_b3_pr3y3d_up0n__@r3_y0u_r3@dy?_@r3_y0u_r3@dy?_@r..." /* TRUNCATED STRING LITERA L */
+    ;
+    if (selection_val < 1000) {
+      print_len = 0x1e;
+      text_offset = 0x10a;
+      selection_val = 2;
+    }
+    else if (selection_val < 0x7d1) {
+      if (selection_val == 0x539) {
+        text_offset = 0x37a;
+        print_len = 0x21;
+        flag_start = "flag{";
+        flag_end = &DAT_00402934;
+        selection_val = 0;
+      }
+      else {
+        print_len = 0x18;
+        text_offset = 0x1e0;
+        selection_val = 4;
+      }
+    }
+    else {
+      print_len = 0x1e;
+      text_offset = 0x1c1;
+      selection_val = 3;
+    }
+  }
+  printf("%s%.*s%s\n",flag_start,print_len,text + text_offset,flag_end);
+  if (selection_val != 0) {
+    printf("Error code: %d\n",selection_val);
+  }
+  return selection_val;
+}
+
+Looking at the marked up decompilation, the only way the error code isn't printed out is if the "selection_val" variable is set to zero. The only branch that does this is when "selection_val" is initially set to 0x539 (1337). This branch sets a bunch of other variables that are used in the printf call. So at this point I knew all the values that printf needed to be called with to produce the flag. Instead of doing this by hand, I just wrote a simple c program to print it exactly the way this binary would have. Here is the code:
+
+#include <stdio.h>
+int main() {
+   char text[] = "@r3_y0u_r3@dy?_g3t_up,_g3t_up_g3t_up,_g3t_up_g3t_up,_g3t_up__g3t_up,_g3t_up_g3t_up,_g3t_up_g3t_up,_g3t_up__w3ll,_@r3_y0u_r3@dy_n0w?_f0r_th3_r3v0luti0n_f0r_t00_l0ng_y0ur_p0w3r_h@s_b33n_t@k3n_@w@y_it's_b33n_t@k3n_@w@y_d03s_y0ur_h3@rt_f33l_h3@vy_n0w_s@v0r_th3_s0luti0n_t@k3_th0s3_m3nt@l_sh@ckl3s_0ff_@nd_thr0w_th3m_@w@y_y0u'v3_g0t_t0_g3t_th3m_0ut_0f_y0ur_mind_d0n't_y0u_l3t_th3ir_visi0n_l3@v3_y0u_blind__m0ving_st3@dy_n0w_it's_@_r3v3l@ti0n_f0r_s0_l0ng_y0ur_f0cus_h@s_b33n_t@k3n_@w@y_n0w_y0u'r3_br3@king_@w@y_th3y_think_th3y_kn0w_y0u_but_h3r3's_@n_3duc@ti0n_n0_th3y_c@n't_c0ntr0l_y0u_0nc3_y0u'v3_br0k3n_@w@y_th3y'r3_d0n3_p@tr0lling_y0ur_mind_wh3n_th3y'r3_s3@rching_f0r_y0u,_th3y_will_find_@_f0rc3_th3y_@r3n't_r3@dy_f0r__@r3_y0u_r3@dy?_th3y_@r3n't_r3@dy_f0r_y0u_t0_b3_str0ng_@r3_y0u_r3@dy?_th3y_@r3n't_r3@dy_f0r_y0u_t0_pr0v3_th3m_wr0ng_@r3_y0u_r3@dy?_th3y_@r3n't_r3@dy_f0r_y0u_t0_b3_turn3d_int0_s0m30n3_wh0_c@nn0t_b3_pr3y3d_up0n__th@t's_3n0ugh_@lr3@dy_n0w_y0u_d0n't_w@nt_t0_t@k3_it_@ll_y0ur_r3s3rv@ti0ns_h@v3_b33n_t@k3n_@w@y_th3y'v3_b33n_t@k3n_@w@y_s0_y0u_think_y0u'r3_r3@dy_n0w_f0r_th3_r3v0luti0n_y3@h,_th3y_c@n't_c0ntr0l_y0u_0nc3_y0u'v3_br0k3n_@w@y_y0u'v3_g0t_t0_g3t_th3m_0ut_0f_y0ur_mind_wh3n_th3y_st@nd_b3f0r3_y0u_th3y_will_find_@_f0rc3_th3y_@r3n't_r3@dy_f0r__@r3_y0u_r3@dy?_th3y_@r3n't_r3@dy_f0r_y0u_t0_b3_str0ng_@r3_y0u_r3@dy?_th3y_@r3n't_r3@dy_f0r_y0u_t0_pr0v3_th3m_wr0ng_@r3_y0u_r3@dy?_th3y_@r3n't_r3@dy_f0r_y0u_t0_b3_turn3d_int0_s0m30n3_wh0_c@nn0t_b3_pr3y3d_up0n__@r3_y0u_r3@dy?__y0u_g0t_t0_g3t_th3m_0ut_0f_y0ur_mind_wh3n_th3y_st@nd_b3f0r3_y0u_th3y_will_find_@_f0rc3_th3y_@r3n't_r3@dy_f0r__@r3_y0u_r3@dy?_th3y_@r3n't_r3@dy_f0r_y0u_t0_b3_str0ng_@r3_y0u_r3@dy?_th3y_@r3n't_r3@dy_f0r_y0u_t0_pr0v3_th3m_wr0ng_@r3_y0u_r3@dy?_th3y_@r3n't_r3@dy_f0r_y0u_t0_b3_turn3d_int0_s0m30n3_wh0_c@nn0t_b3_pr3y3d_up0n__@r3_y0u_r3@dy?_th3y_@r3n't_r3@dy_f0r_us_t0_b3_str0ng_@r3_y0u_r3@dy?_th3y_@r3n't_r3@dy_f0r_us_t0_pr0v3_th3m_wr0ng_@r3_y0u_r3@dy?_l3t_m3_kn0w_y0u'r3_r3@dy_f0r_y0u_t0_b3_turn3d_int0_p30pl3_wh0_c@nn0t_b3_pr3y3d_up0n__@r3_y0u_r3@dy?_@r3_y0u_r3@dy?_@r3_y0u_r3@dy?_y0u_c@nn0t_b3_pr3y3d_up0n_@r3_y0u_r3@dy?_@r3_y0u_r3@dy?_@r3_y0u_r3@dy?";
+   int offset = 0x37a;
+   unsigned int print_len = 0x21;
+   char flag_open[] = "flag{";
+   char flag_close[] = "}";
+   printf("%s%.*s%s\n",flag_open, print_len, text + offset, flag_close);
+   return 0;
+}
+
+Compiling and running this program gave me the exact value of the flag, which turned out to be a substring of the original string (song verse). Trying it with the values from the other branches gave me different substrings that might have seemed to be valid, but would have not been in the correct flag format and the error code would have printed out.
+
+Strings:
+!This program cannot be run in DOS mode.
+Rich
+.text
+`.rdata
+@.data
+.rsrc
+@.reloc
+h8)@
+VhD)@
+$,0@
+5\3@
+h 0@
+5l3@
+540@
+5 0@
+501@
+=,1@
+% 1@
+8csm
+5x3@
+5x3@
+5t3@
+5( @
+_^[]
+Y_^[
+Y_^[
+%| @
+%x @
+Y__^[
+VVVVV
+%P @
+%D @
+%H @
+%L @
+%X @
+%\ @
+%` @
+@r3_y0u_r3@dy?_g3t_up,_g3t_up_g3t_up,_g3t_up_g3t_up,_g3t_up__g3t_up,_g3t_up_g3t_up,_g3t_up_g3t_up,_g3t_up__w3ll,_@r3_y0u_r3@dy_n0w?_f0r_th3_r3v0luti0n_f0r_t00_l0ng_y0ur_p0w3r_h@s_b33n_t@k3n_@w@y_it's_b33n_t@k3n_@w@y_d03s_y0ur_h3@rt_f33l_h3@vy_n0w_s@v0r_th3_s0luti0n_t@k3_th0s3_m3nt@l_sh@ckl3s_0ff_@nd_thr0w_th3m_@w@y_y0u'v3_g0t_t0_g3t_th3m_0ut_0f_y0ur_mind_d0n't_y0u_l3t_th3ir_visi0n_l3@v3_y0u_blind__m0ving_st3@dy_n0w_it's_@_r3v3l@ti0n_f0r_s0_l0ng_y0ur_f0cus_h@s_b33n_t@k3n_@w@y_n0w_y0u'r3_br3@king_@w@y_th3y_think_th3y_kn0w_y0u_but_h3r3's_@n_3duc@ti0n_n0_th3y_c@n't_c0ntr0l_y0u_0nc3_y0u'v3_br0k3n_@w@y_th3y'r3_d0n3_p@tr0lling_y0ur_mind_wh3n_th3y'r3_s3@rching_f0r_y0u,_th3y_will_find_@_f0rc3_th3y_@r3n't_r3@dy_f0r__@r3_y0u_r3@dy?_th3y_@r3n't_r3@dy_f0r_y0u_t0_b3_str0ng_@r3_y0u_r3@dy?_th3y_@r3n't_r3@dy_f0r_y0u_t0_pr0v3_th3m_wr0ng_@r3_y0u_r3@dy?_th3y_@r3n't_r3@dy_f0r_y0u_t0_b3_turn3d_int0_s0m30n3_wh0_c@nn0t_b3_pr3y3d_up0n__th@t's_3n0ugh_@lr3@dy_n0w_y0u_d0n't_w@nt_t0_t@k3_it_@ll_y0ur_r3s3rv@ti0ns_h@v3_b33n_t@k3n_@w@y_th3y'v3_b33n_t@k3n_@w@y_s0_y0u_think_y0u'r3_r3@dy_n0w_f0r_th3_r3v0luti0n_y3@h,_th3y_c@n't_c0ntr0l_y0u_0nc3_y0u'v3_br0k3n_@w@y_y0u'v3_g0t_t0_g3t_th3m_0ut_0f_y0ur_mind_wh3n_th3y_st@nd_b3f0r3_y0u_th3y_will_find_@_f0rc3_th3y_@r3n't_r3@dy_f0r__@r3_y0u_r3@dy?_th3y_@r3n't_r3@dy_f0r_y0u_t0_b3_str0ng_@r3_y0u_r3@dy?_th3y_@r3n't_r3@dy_f0r_y0u_t0_pr0v3_th3m_wr0ng_@r3_y0u_r3@dy?_th3y_@r3n't_r3@dy_f0r_y0u_t0_b3_turn3d_int0_s0m30n3_wh0_c@nn0t_b3_pr3y3d_up0n__@r3_y0u_r3@dy?__y0u_g0t_t0_g3t_th3m_0ut_0f_y0ur_mind_wh3n_th3y_st@nd_b3f0r3_y0u_th3y_will_find_@_f0rc3_th3y_@r3n't_r3@dy_f0r__@r3_y0u_r3@dy?_th3y_@r3n't_r3@dy_f0r_y0u_t0_b3_str0ng_@r3_y0u_r3@dy?_th3y_@r3n't_r3@dy_f0r_y0u_t0_pr0v3_th3m_wr0ng_@r3_y0u_r3@dy?_th3y_@r3n't_r3@dy_f0r_y0u_t0_b3_turn3d_int0_s0m30n3_wh0_c@nn0t_b3_pr3y3d_up0n__@r3_y0u_r3@dy?_th3y_@r3n't_r3@dy_f0r_us_t0_b3_str0ng_@r3_y0u_r3@dy?_th3y_@r3n't_r3@dy_f0r_us_t0_pr0v3_th3m_wr0ng_@r3_y0u_r3@dy?_l3t_m3_kn0w_y0u'r3_r3@dy_f0r_y0u_t0_b3_turn3d_int0_p30pl3_wh0_c@nn0t_b3_pr3y3d_up0n__@r3_y0u_r3@dy?_@r3_y0u_r3@dy?_@r3_y0u_r3@dy?_y0u_c@nn0t_b3_pr3y3d_up0n_@r3_y0u_r3@dy?_@r3_y0u_r3@dy?_@r3_y0u_r3@dy?
+flag{
+%s%.*s%s
+Error code: %d
+atoi
+printf
+MSVCR100.dll
+_amsg_exit
+__getmainargs
+_cexit
+_exit
+_XcptFilter
+exit
+__initenv
+_initterm
+_initterm_e
+_configthreadlocale
+__setusermatherr
+_commode
+_fmode
+__set_app_type
+_crt_debugger_hook
+?terminate@@YAXXZ
+_unlock
+__dllonexit
+_lock
+_onexit
+_except_handler4_common
+_invoke_watson
+_controlfp_s
+InterlockedExchange
+Sleep
+InterlockedCompareExchange
+HeapSetInformation
+EncodePointer
+TerminateProcess
+GetCurrentProcess
+UnhandledExceptionFilter
+SetUnhandledExceptionFilter
+IsDebuggerPresent
+DecodePointer
+QueryPerformanceCounter
+GetTickCount
+GetCurrentThreadId
+GetCurrentProcessId
+GetSystemTimeAsFileTime
+KERNEL32.dll
+<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+  <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
+    <security>
+      <requestedPrivileges>
+        <requestedExecutionLevel level="asInvoker" uiAccess="false"></requestedExecutionLevel>
+      </requestedPrivileges>
+    </security>
+  </trustInfo>
+</assembly>PAPADDINGXXPADDINGPADDINGXXPADDINGPADDINGXXPADDINGPADDINGXXPADDINGPADDINGXXPAD
+0%0-0|0
+1*1>1G1b1l1
+2 2&23292B2a2i2r2x2
+3#3+313=3H3f3l3r3x3~3
+4,41474=4S4Z4
+5+555r5w5
+5X6]6o6
+7!7>7
+8*8S8[8f8l8r8x8~8
+
+Marked up decompilation:
+int __cdecl FUN_00401000(int param_1,int param_2)
+
+{
+  int text_offset;
+  int selection_val;
+  undefined4 print_len;
+  char *text;
+  undefined *flag_end;
+  char *flag_start;
+  
+  text = "";
+  print_len = 0;
+  text_offset = 0;
+  flag_start = "";
+  flag_end = &DAT_004020d0;
+  selection_val = 1;
+  if (param_1 == 2) {
+    selection_val = atoi(*(char **)(param_2 + 4));
+    text = 
+    "@r3_y0u_r3@dy?_g3t_up,_g3t_up_g3t_up,_g3t_up_g3t_up,_g3t_up__g3t_up,_g3t_up_g3t_up,_g3t_up_g3t_ up,_g3t_up__w3ll,_@r3_y0u_r3@dy_n0w?_f0r_th3_r3v0luti0n_f0r_t00_l0ng_y0ur_p0w3r_h@s_b33n_t@k3n_@ w@y_it\'s_b33n_t@k3n_@w@y_d03s_y0ur_h3@rt_f33l_h3@vy_n0w_s@v0r_th3_s0luti0n_t@k3_th0s3_m3nt@l_sh @ckl3s_0ff_@nd_thr0w_th3m_@w@y_y0u\'v3_g0t_t0_g3t_th3m_0ut_0f_y0ur_mind_d0n\'t_y0u_l3t_th3ir_vis i0n_l3@v3_y0u_blind__m0ving_st3@dy_n0w_it\'s_@_r3v3l@ti0n_f0r_s0_l0ng_y0ur_f0cus_h@s_b33n_t@k3n_ @w@y_n0w_y0u\'r3_br3@king_@w@y_th3y_think_th3y_kn0w_y0u_but_h3r3\'s_@n_3duc@ti0n_n0_th3y_c@n\'t_ c0ntr0l_y0u_0nc3_y0u\'v3_br0k3n_@w@y_th3y\'r3_d0n3_p@tr0lling_y0ur_mind_wh3n_th3y\'r3_s3@rching_ f0r_y0u,_th3y_will_find_@_f0rc3_th3y_@r3n\'t_r3@dy_f0r__@r3_y0u_r3@dy?_th3y_@r3n\'t_r3@dy_f0r_y0 u_t0_b3_str0ng_@r3_y0u_r3@dy?_th3y_@r3n\'t_r3@dy_f0r_y0u_t0_pr0v3_th3m_wr0ng_@r3_y0u_r3@dy?_th3y _@r3n\'t_r3@dy_f0r_y0u_t0_b3_turn3d_int0_s0m30n3_wh0_c@nn0t_b3_pr3y3d_up0n__th@t\'s_3n0ugh_@lr3@ dy_n0w_y0u_d0n\'t_w@nt_t0_t@k3_it_@ll_y0ur_r3s3rv@ti0ns_h@v3_b33n_t@k3n_@w@y_th3y\'v3_b33n_t@k3n _@w@y_s0_y0u_think_y0u\'r3_r3@dy_n0w_f0r_th3_r3v0luti0n_y3@h,_th3y_c@n\'t_c0ntr0l_y0u_0nc3_y0u\' v3_br0k3n_@w@y_y0u\'v3_g0t_t0_g3t_th3m_0ut_0f_y0ur_mind_wh3n_th3y_st@nd_b3f0r3_y0u_th3y_will_fin d_@_f0rc3_th3y_@r3n\'t_r3@dy_f0r__@r3_y0u_r3@dy?_th3y_@r3n\'t_r3@dy_f0r_y0u_t0_b3_str0ng_@r3_y0u _r3@dy?_th3y_@r3n\'t_r3@dy_f0r_y0u_t0_pr0v3_th3m_wr0ng_@r3_y0u_r3@dy?_th3y_@r3n\'t_r3@dy_f0r_y0u _t0_b3_turn3d_int0_s0m30n3_wh0_c@nn0t_b3_pr3y3d_up0n__@r3_y0u_r3@dy?__y0u_g0t_t0_g3t_th3m_0ut_0f _y0ur_mind_wh3n_th3y_st@nd_b3f0r3_y0u_th3y_will_find_@_f0rc3_th3y_@r3n\'t_r3@dy_f0r__@r3_y0u_r3@ dy?_th3y_@r3n\'t_r3@dy_f0r_y0u_t0_b3_str0ng_@r3_y0u_r3@dy?_th3y_@r3n\'t_r3@dy_f0r_y0u_t0_pr0v3_t h3m_wr0ng_@r3_y0u_r3@dy?_th3y_@r3n\'t_r3@dy_f0r_y0u_t0_b3_turn3d_int0_s0m30n3_wh0_c@nn0t_b3_pr3y 3d_up0n__@r3_y0u_r3@dy?_th3y_@r3n\'t_r3@dy_f0r_us_t0_b3_str0ng_@r3_y0u_r3@dy?_th3y_@r3n\'t_r3@dy _f0r_us_t0_pr0v3_th3m_wr0ng_@r3_y0u_r3@dy?_l3t_m3_kn0w_y0u\'r3_r3@dy_f0r_y0u_t0_b3_turn3d_int0_p 30pl3_wh0_c@nn0t_b3_pr3y3d_up0n__@r3_y0u_r3@dy?_@r3_y0u_r3@dy?_@r..." /* TRUNCATED STRING LITERA L */
+    ;
+    if (selection_val < 1000) {
+      print_len = 0x1e;
+      text_offset = 0x10a;
+      selection_val = 2;
+    }
+    else if (selection_val < 0x7d1) {
+      if (selection_val == 0x539) {
+        text_offset = 0x37a;
+        print_len = 0x21;
+        flag_start = "flag{";
+        flag_end = &DAT_00402934;
+        selection_val = 0;
+      }
+      else {
+        print_len = 0x18;
+        text_offset = 0x1e0;
+        selection_val = 4;
+      }
+    }
+    else {
+      print_len = 0x1e;
+      text_offset = 0x1c1;
+      selection_val = 3;
+    }
+  }
+  printf("%s%.*s%s\n",flag_start,print_len,text + text_offset,flag_end);
+  if (selection_val != 0) {
+    printf("Error code: %d\n",selection_val);
+  }
+  return selection_val;
+}
+
+Simulated code:
+#include <stdio.h>
+int main() {
+   char text[] = "@r3_y0u_r3@dy?_g3t_up,_g3t_up_g3t_up,_g3t_up_g3t_up,_g3t_up__g3t_up,_g3t_up_g3t_up,_g3t_up_g3t_up,_g3t_up__w3ll,_@r3_y0u_r3@dy_n0w?_f0r_th3_r3v0luti0n_f0r_t00_l0ng_y0ur_p0w3r_h@s_b33n_t@k3n_@w@y_it's_b33n_t@k3n_@w@y_d03s_y0ur_h3@rt_f33l_h3@vy_n0w_s@v0r_th3_s0luti0n_t@k3_th0s3_m3nt@l_sh@ckl3s_0ff_@nd_thr0w_th3m_@w@y_y0u'v3_g0t_t0_g3t_th3m_0ut_0f_y0ur_mind_d0n't_y0u_l3t_th3ir_visi0n_l3@v3_y0u_blind__m0ving_st3@dy_n0w_it's_@_r3v3l@ti0n_f0r_s0_l0ng_y0ur_f0cus_h@s_b33n_t@k3n_@w@y_n0w_y0u'r3_br3@king_@w@y_th3y_think_th3y_kn0w_y0u_but_h3r3's_@n_3duc@ti0n_n0_th3y_c@n't_c0ntr0l_y0u_0nc3_y0u'v3_br0k3n_@w@y_th3y'r3_d0n3_p@tr0lling_y0ur_mind_wh3n_th3y'r3_s3@rching_f0r_y0u,_th3y_will_find_@_f0rc3_th3y_@r3n't_r3@dy_f0r__@r3_y0u_r3@dy?_th3y_@r3n't_r3@dy_f0r_y0u_t0_b3_str0ng_@r3_y0u_r3@dy?_th3y_@r3n't_r3@dy_f0r_y0u_t0_pr0v3_th3m_wr0ng_@r3_y0u_r3@dy?_th3y_@r3n't_r3@dy_f0r_y0u_t0_b3_turn3d_int0_s0m30n3_wh0_c@nn0t_b3_pr3y3d_up0n__th@t's_3n0ugh_@lr3@dy_n0w_y0u_d0n't_w@nt_t0_t@k3_it_@ll_y0ur_r3s3rv@ti0ns_h@v3_b33n_t@k3n_@w@y_th3y'v3_b33n_t@k3n_@w@y_s0_y0u_think_y0u'r3_r3@dy_n0w_f0r_th3_r3v0luti0n_y3@h,_th3y_c@n't_c0ntr0l_y0u_0nc3_y0u'v3_br0k3n_@w@y_y0u'v3_g0t_t0_g3t_th3m_0ut_0f_y0ur_mind_wh3n_th3y_st@nd_b3f0r3_y0u_th3y_will_find_@_f0rc3_th3y_@r3n't_r3@dy_f0r__@r3_y0u_r3@dy?_th3y_@r3n't_r3@dy_f0r_y0u_t0_b3_str0ng_@r3_y0u_r3@dy?_th3y_@r3n't_r3@dy_f0r_y0u_t0_pr0v3_th3m_wr0ng_@r3_y0u_r3@dy?_th3y_@r3n't_r3@dy_f0r_y0u_t0_b3_turn3d_int0_s0m30n3_wh0_c@nn0t_b3_pr3y3d_up0n__@r3_y0u_r3@dy?__y0u_g0t_t0_g3t_th3m_0ut_0f_y0ur_mind_wh3n_th3y_st@nd_b3f0r3_y0u_th3y_will_find_@_f0rc3_th3y_@r3n't_r3@dy_f0r__@r3_y0u_r3@dy?_th3y_@r3n't_r3@dy_f0r_y0u_t0_b3_str0ng_@r3_y0u_r3@dy?_th3y_@r3n't_r3@dy_f0r_y0u_t0_pr0v3_th3m_wr0ng_@r3_y0u_r3@dy?_th3y_@r3n't_r3@dy_f0r_y0u_t0_b3_turn3d_int0_s0m30n3_wh0_c@nn0t_b3_pr3y3d_up0n__@r3_y0u_r3@dy?_th3y_@r3n't_r3@dy_f0r_us_t0_b3_str0ng_@r3_y0u_r3@dy?_th3y_@r3n't_r3@dy_f0r_us_t0_pr0v3_th3m_wr0ng_@r3_y0u_r3@dy?_l3t_m3_kn0w_y0u'r3_r3@dy_f0r_y0u_t0_b3_turn3d_int0_p30pl3_wh0_c@nn0t_b3_pr3y3d_up0n__@r3_y0u_r3@dy?_@r3_y0u_r3@dy?_@r3_y0u_r3@dy?_y0u_c@nn0t_b3_pr3y3d_up0n_@r3_y0u_r3@dy?_@r3_y0u_r3@dy?_@r3_y0u_r3@dy?";
+   int offset = 0x37a;
+   unsigned int print_len = 0x21;
+   char flag_open[] = "flag{";
+   char flag_close[] = "}";
+   printf("%s%.*s%s\n",flag_open, print_len, text + offset, flag_close);
+   return 0;
+}

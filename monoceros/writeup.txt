@@ -1,0 +1,189 @@
+I started by extracting the zip file to reveal a python project, some memory dump files, and a file containing the encoded flag. I followed the readme to install the dependencies. The first dependency was unicorn which I looked up and found out that it is an emulation framework for python. The second dependency was capstone and I found out that it is a disassembler for python. Once I had everything installed, I ran the code. There were no errors and the print output showed that the emulation finished. At this point I had a hunch that the emulation could be used to decode the flag somehow. I looked in the directory containing all the memory dump files and I found a json file (_index.json) describing how to map each memory dump and the initial values of all the registers. Some of the memory dumps were named "unicorn/decoder" which lead me to believe that they would contain the instructions to decode the encoded flag file.
+
+I wasn't familiar with unicorn or capstone so I read through the unicorn_harness.py code. I noticed a couple of useful things from the code:
+1. I found some constants for the start address and end address, so I knew what the entry point would be.
+2. There was an example on how to hook instructions. It was implemented to hook addresses that belonged to strlen, so I had a clue as to where to look for these calls.
+3. There was a comment pointing to capstone but I didn't see any usages in the code, so I guessed this was left as an exercise for me to complete.
+4. A debug option was available by supplying the -d flag. I tried it out and got some trace output.
+
+Next I modified the instruction hook function to disassemble the bytes with capstone. I stored this in a global dictionary so I could organize all the instructions by address and exclude repeats. I also wanted to get the raw instruction bytes so I could try to disassemble with ghidra to cross reference. So I dumped the bytes sorted by address to a file. I updated the code to pad with zeros for any holes so that the offsets would be correct. I opened up this bin file in ghidra and set the base address to 0x5555555546b0 (The earliest address in my sorted disassembly output from capstone which should match the bin output). I double checked to make sure the bytes at the entry point matched too, so I could be confident that my padding was correct. Now in ghidra, I navigated to the entry point used for the emulation (START_ADDRESS = 0x555555554958) and told it to disassemble there. I was able to get some partial disassembly in ghidra and it agreed with what I got from capstone. Here is a snippet of the decompiled output from ghidra at the entry point:
+
+uVar4 = unaff_RBP - 0x210;
+pcVar2 = (char *)FUN_55555555481a(uVar4,unaff_RBP + -0x110);
+
+It looks like the code is passing pointers to two memory locations to a function (rbp - 0x210 and rbp - 0x110). Navigating into the function I got this:
+
+undefined8 FUN_55555555481a(long param_1,undefined8 param_2)
+{
+  int iVar1;
+  undefined4 uVar2;
+  undefined4 uVar3;
+  int local_1c;
+  
+  iVar1 = FUN_5555555546b0(param_1);
+  for (local_1c = 0; local_1c < iVar1; local_1c = local_1c + 1) {
+    *(byte *)(param_1 + local_1c) = *(byte *)(param_1 + local_1c) ^ 0xf;
+  }
+  uVar2 = FUN_5555555546b0(param_1);
+  uVar3 = FUN_5555555551f5(uVar2);
+  FUN_555555554d40(param_1,uVar2,param_2,uVar3);
+  return 0;
+}
+
+The first thing I noticed was that the first parameter was passed into to a function and the return was being used as a bounds check to a for loop. This along with the example hook in the code for strlen lead me to believe that this function was a call to strlen. I double checked with the addresses given in the example hook and confirmed that the function was strlen, which means the parameters for this function are strings. The loop itself is xoring each char in the string with 0xf (some sort of encoding). And then a final function is called with all the values.
+
+At this point I wanted to modify the memory at the first address that was passed into the function (rbp - 0x210). I used the _index.json file to determine the initial value of rbp and updated unicorn_harness.py to write the content of the encoded flag to rbp - 0x210 before the emulation started. I used the mem_write function provided by unicorn to do this. I also used the mem_read function to verify what was being written. And I did a mem_read at the end of the emulation to check if the value changed. Now when I ran the code I saw that the bytes that I wrote where being changed like so:
+
+ADDR1 before: N`'bhGX#+ N7#Z}0U[a.HO#^%O3"'-M;,$QIKVG"LAJfbO4RIlN\l3bJ#`A:N\z[|IK#:bI&U =O5XPoNbR*kK nX1N[K!+McS04N[A7A
+ADD1 after: Ao(mgHW,$/A8,Ur?ZTn!G@,Q*@<-("B4#+^FDYH-CNEim@;]FcASc<mE,oN5ASuTsFD,5mF)Z/2@:W_`Am]%dD/aW>ATD.$Bl\?;ATN8N
+
+The change matched what I would expect from the xor with 0xf, but this was not the flag. At this point I turned my attention to the second parameter that was passed in (rbp - 110). I didn't know what I would write to this address but I decided to print the memory before and after without writing anything. To my surprise, I found the flag:
+
+ADDR2 before:
+ADDR2 after: flag{Studies_show_wearing_bitmasks_can_help_prevent_the_spread_of_computer_viruses}
+
+So it looks like rbp - 210 was the address for the input to the decoder. And rbp - 110 was the address where the output would be written.
+
+I have included my modification to unicorn_harness.py that I made to solve this problem below:
+
+import argparse
+from unicorn import *
+from unicorn.x86_const import *
+from capstone import *
+import unicorn_loader
+
+# Store the disassembly in a dict. Format will be {address, tuple(instruction_bytes, disassembly_string)}
+instruction_bytes = {}
+
+
+def disassemble(byte_str, addr):
+    lines = []
+
+    # Taken from a capstone example
+    md = Cs(CS_ARCH_X86, CS_MODE_64)
+    diss = md.disasm(byte_str, addr)
+    for i in diss:
+        line = "%s\t%s" % (i.mnemonic, i.op_str)
+        lines.append(line)
+
+    # Sanity check to make sure we dont get more than one line for each instruction
+    if len(lines) != 1:
+        raise Exception("This shouldn't happen")
+
+    return lines[0]
+
+
+def unicorn_hook_instruction(uc, address, size, user_data):
+    global instruction_bytes
+
+    # Get the bytes of the instruction we just hooked
+    ibytes = uc.mem_read(address, size)
+
+    # Disassemble with capstone
+    line = disassemble(ibytes, address)
+
+    # Want to store in our dict so we want to avoid repeats (instructions run multiple time in loops etc)
+    if address not in instruction_bytes:
+        instruction_bytes[address] = (ibytes, line)
+
+    # Original code hint that there might be a strlen call at these addresses.
+    # But dont need to hook it for now.
+    # if address == 0x555555554831 or address == 0x555555554879:
+    #     hook_strlen(uc)
+    return
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "context_dir", type=str, help="Directory containing process context"
+    )
+    parser.add_argument(
+        "-d", "--debug", default=False, action="store_true", help="Dump trace info"
+    )
+    args = parser.parse_args()
+
+    print("Loading context from {}".format(args.context_dir))
+    uc = unicorn_loader.AflUnicornEngine(
+        args.context_dir, enable_trace=args.debug, debug_print=False
+    )
+
+    uc.hook_add(UC_HOOK_CODE, unicorn_hook_instruction)
+
+    # Initial value of rbp based on what is in _index.json
+    RBP_VAL = 140737488346544
+
+    # rbp - 0x210, one of the parameters passed into the function of interest
+    ADDRESS_OF_INTEREST1 = RBP_VAL - 0x210
+
+    # rbp - 0x110, another of the parameters passed into the function of interest
+    ADDRESS_OF_INTEREST2 = RBP_VAL - 0x110
+
+    # Write the byte contents of encoded_flag.txt into the first address of interest
+    uc.mem_write(
+        ADDRESS_OF_INTEREST1,
+        bytes.fromhex(
+            "4E602762684758232B204E37235A7D30555B612E484F235E254F3322272D4D3B2C2451494B5647224C414A66624F3452496C4E5C6C33624A2360413A4E5C7A5B7C494B233A62492655203D4F3558506F4E62522A6B4B206E58314E5B4B212B4D635330344E5B4137"
+        ),
+    )
+
+    # Read from these addresses before we start emulation to see initial values.
+    # Try to decode as a string to see if there is anything interesting
+    rbytes = uc.mem_read(ADDRESS_OF_INTEREST1, 150)
+    print(f"ADDR1 before: {rbytes.decode()}")
+    rbytes = uc.mem_read(ADDRESS_OF_INTEREST2, 150)
+    print(f"ADDR2 before: {rbytes.decode()}")
+
+    START_ADDRESS = 0x555555554958
+    END_ADDRESS = 0x555555554978
+    print(
+        "Starting emulation from 0x{0:016x} to 0x{1:016x}".format(
+            START_ADDRESS, END_ADDRESS
+        )
+    )
+    uc.emu_start(START_ADDRESS, END_ADDRESS, timeout=0, count=0)
+
+    # Read the values in the addresses of interest after emulation is complete to see if anything changed
+    rbytes = uc.mem_read(ADDRESS_OF_INTEREST1, 150)
+    print(f"ADD1 after: {rbytes.decode()}")
+    rbytes = uc.mem_read(ADDRESS_OF_INTEREST2, 150)
+    print(f"ADDR2 after: {rbytes.decode()}")
+    print("Finished Emulation")
+
+    # If we have the debug flag on write out full disassembly and bin dump
+    if args.debug:
+        with open("disassembly.txt", "w") as f:
+            # Want to print out disassembly in order so we sort
+            for addr in sorted(instruction_bytes.keys()):
+                # Print format will be address, instruction bytes, and disassembly string
+                line = f"{hex(addr)} {instruction_bytes[addr][0].hex()} {instruction_bytes[addr][1]}\n"
+                f.write(line)
+
+        # Want to print out just the bytes so we can cross reference with ghidra
+        with open("dump.bin", "wb") as f:
+            # Remember the last address and number of bytes we wrote
+            prev_addr = None
+            prev_bytes_written = 0
+            for addr in sorted(instruction_bytes.keys()):
+                # I wanted to fill in gaps in the address with zeros the best I could so offsets will be correct
+                if prev_addr:
+                    # Calculate the difference between the last address and the number of zeros to pad
+                    diff = addr - prev_addr
+                    zeros = diff - prev_bytes_written
+
+                    # A little hack to prevent doing too much. There was a large gap that would cause a
+                    # crash if we tried to write that much so I found a range that is good only for the
+                    # part that I care about.
+                    if 0 < zeros < 1000:
+                        f.write(b"\x00" * zeros)
+
+                # Write out the instruction bytes
+                f.write(instruction_bytes[addr][0])
+
+                # Remember for the next iteration
+                prev_addr = addr
+                prev_bytes_written = len(instruction_bytes[addr][0])
+
+
+if __name__ == "__main__":
+    main()

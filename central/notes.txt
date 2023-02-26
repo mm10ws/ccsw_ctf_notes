@@ -1,0 +1,602 @@
+// console prompt logic
+void FUN_140001aa0(void)
+
+{
+  DWORD some_sprintf_result_len;
+  int space_detected;
+  BOOL is_debugger;
+  HANDLE heap_handle;
+  __time64_t curr_time_since_epoch;
+  char *console_handle;
+  char *reset_to_zero;
+  uint i;
+  char *i_cpy;
+  char *user_input;
+  undefined auStackY2152 [32];
+  DWORD local_838 [4];
+  _CONTEXT local_828;
+  char *copy_of_user_input [100];
+  ulonglong local_38;
+  char char_of_user_input;
+  void *park_console_init_text;
+  char *user_input_incremented;
+  
+  local_38 = DAT_140006008 ^ (ulonglong)auStackY2152;
+  is_debugger = SetConsoleCtrlHandler(free_mem_func_wrapper,1);
+  if (is_debugger != 0) {
+    heap_handle = GetProcessHeap();
+    SetConsoleTitleA("Central Park Control Console");
+    hashed_alloc_func_data_copy = HeapAlloc(heap_handle,8,0x14);
+    if ((((hashed_alloc_func_data_copy != (LPVOID)0x0) &&
+         (some_interest_16_bytes = HeapAlloc(heap_handle,8,0x10),
+         some_interest_16_bytes != (LPVOID)0x0)) &&
+        (console_read_buff = (char *)HeapAlloc(heap_handle,8,0x400),
+        console_read_buff != (char *)0x0)) &&
+       (console_response_buf = HeapAlloc(heap_handle,8,0x400), console_response_buf != (LPVOID)0x0))
+    {
+      curr_time_since_epoch = _time64((__time64_t *)0x0);
+      srand((uint)curr_time_since_epoch);
+      _DAT_14000e348 = 1;
+      some_sprintf_result_len =
+           some_sprintf(console_response_buf,0x400,"%s\n%s\nReady...\n",
+                        "Jurassic Park, System Security Interface");
+      park_console_init_text = console_response_buf;
+      reset_to_zero = (char *)0x0;
+      local_838[0] = 0;
+      console_handle = (char *)GetStdHandle(0xfffffff5);
+      WriteConsoleA(console_handle,park_console_init_text,some_sprintf_result_len,local_838,
+                    (LPVOID)0x0);
+      if (_DAT_14000e348 != 0) {
+LAB_140001c60:
+        write_then_read(console_handle,&prompt_val);
+        i_cpy = reset_to_zero;
+        user_input = console_read_buff;
+        while( true ) {
+          i = (uint)i_cpy;
+          console_handle = (char *)(ulonglong)(uint)(int)*user_input;
+          space_detected = isspace((int)*user_input);
+                    /* keep looping until there is something other than whitespace */
+          while (space_detected != 0) {
+            user_input_incremented = user_input + 1;
+            console_handle = (char *)(ulonglong)(uint)(int)*user_input_incremented;
+            user_input = user_input + 1;
+            space_detected = isspace((int)*user_input_incremented);
+          }
+          user_input_incremented = reset_to_zero;
+          if (*user_input != '\0') {
+            user_input_incremented = user_input;
+          }
+          if (user_input_incremented == (char *)0x0) break;
+          char_of_user_input = *user_input_incremented;
+          console_handle = (char *)(ulonglong)(uint)(int)char_of_user_input;
+          i = i + 1;
+          copy_of_user_input[(longlong)i_cpy] = user_input_incremented;
+          space_detected = isspace((int)char_of_user_input);
+          for (; (space_detected == 0 && (*user_input_incremented != '\0'));
+              user_input_incremented = user_input_incremented + 1) {
+            console_handle = (char *)(ulonglong)(uint)(int)user_input_incremented[1];
+            space_detected = isspace((int)user_input_incremented[1]);
+          }
+          user_input = reset_to_zero;
+          if (*user_input_incremented != '\0') {
+            user_input = user_input_incremented;
+          }
+          if (user_input == (char *)0x0) break;
+          *user_input = '\0';
+          user_input = user_input + 1;
+          i_cpy = (char *)(ulonglong)i;
+        }
+        if (i == 0) goto LAB_140001f13;
+        is_debugger = IsDebuggerPresent();
+        if (is_debugger == 0) {
+          memset(&local_828,0,0x4d0);
+          heap_handle = GetCurrentThread();
+          local_828.ContextFlags = 0x100010;
+          is_debugger = GetThreadContext(heap_handle,&local_828);
+          console_handle = reset_to_zero;
+          if ((is_debugger != 0) &&
+             (((local_828.Dr0 != 0 || (local_828.Dr1 != 0)) ||
+              ((local_828.Dr2 != 0 ||
+               (((local_828.Dr3 != 0 || (local_828.Dr6 != 0)) || (local_828.Dr7 != 0))))))))
+          goto LAB_140001f21;
+          do {
+            i_cpy = console_handle + 1;
+            user_input = reset_to_zero;
+            if (console_handle[(longlong)copy_of_user_input[0]] != console_handle[0x140004638])
+            goto LAB_140001eb0;
+            console_handle = i_cpy;
+          } while (i_cpy != (char *)0x7);
+          console_handle = reset_to_zero;
+          if (i < 2) {
+            local_838[0] = 0;
+            console_handle = (char *)GetStdHandle(0xfffffff5);
+            some_sprintf_result_len = 0x58;
+            user_input = 
+            "\naccess help        Display this menu\naccess security    Access the main security gri d\n\n"
+            ;
+          }
+          else {
+            do {
+              user_input = console_handle + 1;
+              if (copy_of_user_input[1][(longlong)console_handle] != console_handle[0x1400045f0]) {
+                user_input = reset_to_zero;
+                if ((*copy_of_user_input[1] != '?') || (copy_of_user_input[1][1] != '\0'))
+                goto LAB_140001e50;
+                local_838[0] = 0;
+                console_handle = (char *)GetStdHandle(0xfffffff5);
+                some_sprintf_result_len = 0x58;
+                user_input = 
+                "\naccess help        Display this menu\naccess security    Access the main security  grid\n\n"
+                ;
+                goto LAB_140001f00;
+              }
+              console_handle = user_input;
+            } while (user_input != (char *)0x5);
+            local_838[0] = 0;
+            console_handle = (char *)GetStdHandle(0xfffffff5);
+            some_sprintf_result_len = 0x58;
+            user_input = 
+            "\naccess help        Display this menu\naccess security    Access the main security gri d\n\n"
+            ;
+          }
+          goto LAB_140001f00;
+        }
+LAB_140001f21:
+        fail_func("DEBUGGER DETECTED!!!\n");
+      }
+    }
+  }
+LAB_140001f6d:
+  free_mem_func();
+  some_is_processor_feature_thing(local_38 ^ (ulonglong)auStackY2152);
+  return;
+LAB_140001eb0:
+  console_handle = user_input + 1;
+  i_cpy = reset_to_zero;
+  if (user_input[(longlong)copy_of_user_input[0]] != user_input[0x140004640]) goto LAB_140001ed0;
+  user_input = console_handle;
+  if (console_handle == (char *)0x5) {
+    _DAT_14000e348 = 0;
+    goto LAB_140001f6d;
+  }
+  goto LAB_140001eb0;
+  while (i_cpy = console_handle, console_handle != (char *)0x5) {
+LAB_140001ed0:
+    console_handle = i_cpy + 1;
+    if (i_cpy[(longlong)copy_of_user_input[0]] != i_cpy[0x1400045f0]) goto LAB_140001f13;
+  }
+  local_838[0] = 0;
+  console_handle = (char *)GetStdHandle(0xfffffff5);
+  some_sprintf_result_len = 0x61;
+  user_input = 
+  "\nhelp      Display this menu\nexit      Exit the console\naccess    Access the main security gri d\n\n"
+  ;
+LAB_140001f00:
+  WriteConsoleA(console_handle,user_input,some_sprintf_result_len,local_838,(LPVOID)0x0);
+LAB_140001f13:
+  if (_DAT_14000e348 == 0) goto LAB_140001f6d;
+  goto LAB_140001c60;
+  while (user_input = console_handle, console_handle != (char *)0x5) {
+LAB_140001e50:
+    console_handle = user_input + 1;
+    if (copy_of_user_input[1][(longlong)user_input] != user_input[0x1400045fc]) {
+      some_sprintf_result_len =
+           some_sprintf(console_response_buf,0x400,"access: %s....and...\n","PERMISSION DENIED");
+      print_to_console(console_response_buf,some_sprintf_result_len);
+      console_handle = "YOU DIDN\'T SAY THE MAGIC WORD!\n";
+      fail_func("YOU DIDN\'T SAY THE MAGIC WORD!\n");
+      goto LAB_140001f13;
+    }
+  }
+  get_fl4g();
+  goto LAB_140001f13;
+}
+
+
+// get flag func
+void get_fl4g(void)
+
+{
+  uint *puVar1;
+  uint *puVar2;
+  uint uVar3;
+  uint uVar4;
+  uint uVar5;
+  uint uVar6;
+  uint uVar7;
+  uint uVar8;
+  uint uVar9;
+  uint uVar10;
+  uint uVar11;
+  uint uVar12;
+  int var_for_rand_no;
+  DWORD nNumberOfCharsToWrite;
+  BOOL BVar13;
+  HANDLE pvVar14;
+  uint *some_alloc_func;
+  uint *puVar15;
+  undefined8 uVar16;
+  code *pcVar17;
+  undefined *puVar18;
+  uint uVar19;
+  uint uVar20;
+  ulonglong i;
+  undefined auStackY1400 [32];
+  DWORD local_548 [4];
+  _CONTEXT local_538;
+  undefined8 challenge_text;
+  undefined local_60;
+  undefined local_58 [64];
+  ulonglong local_18;
+  ulonglong starts_at_0;
+  
+  local_18 = DAT_140006008 ^ (ulonglong)auStackY1400;
+  memset(&local_538,0,0x4d0);
+  starts_at_0 = 0;
+  challenge_text = 0;
+  local_60 = 0;
+  i = starts_at_0;
+  do {
+    var_for_rand_no = rand();
+    *(byte *)((longlong)&challenge_text + i) = (&DAT_1400043c8)[var_for_rand_no % 0x1a] ^ 0xaa;
+    i = i + 1;
+  } while ((longlong)i < 8);
+  nNumberOfCharsToWrite = some_sprintf(local_58,0x40,"\nChallenge: %s\n",&challenge_text);
+  local_548[0] = 0;
+  pvVar14 = GetStdHandle(0xfffffff5);
+  WriteConsoleA(pvVar14,local_58,nNumberOfCharsToWrite,local_548,(LPVOID)0x0);
+  var_for_rand_no = write_then_read(pvVar14,"Response: ");
+  if (var_for_rand_no != 10) {
+    local_548[0] = 0;
+    pvVar14 = GetStdHandle(0xfffffff5);
+    WriteConsoleA(pvVar14,"Invalid response.\n\n",0x13,local_548,(LPVOID)0x0);
+    goto LAB_140001991;
+  }
+  *(undefined *)(console_read_buff + 8) = 0;
+  BVar13 = IsDebuggerPresent();
+  if (BVar13 == 0) {
+    pvVar14 = GetCurrentThread();
+    local_538.ContextFlags = 0x100010;
+    BVar13 = GetThreadContext(pvVar14,&local_538);
+    if ((BVar13 == 0) ||
+       (((((local_538.Dr0 == 0 && (local_538.Dr1 == 0)) && (local_538.Dr2 == 0)) &&
+         ((local_538.Dr3 == 0 && (local_538.Dr6 == 0)))) && (local_538.Dr7 == 0)))) {
+      some_alloc_func = (uint *)VirtualAlloc((LPVOID)0x0,0xc6,0x1000,0x40);
+      _DAT_14000e340 = some_alloc_func;
+      if (some_alloc_func != (uint *)0x0) {
+        if ((&DAT_1400043c5 < some_alloc_func) ||
+           ((code *)((longlong)some_alloc_func + 0xc5) < &DAT_140004300)) {
+          puVar15 = some_alloc_func;
+          do {
+            puVar1 = (uint *)(((longlong)&DAT_140004300 - (longlong)some_alloc_func) +
+                             (longlong)puVar15);
+            uVar20 = puVar1[1];
+            uVar3 = puVar1[2];
+            uVar4 = puVar1[3];
+            uVar19 = (int)starts_at_0 + 0x40;
+            starts_at_0 = (ulonglong)uVar19;
+            puVar2 = (uint *)(((longlong)&DAT_140004310 - (longlong)some_alloc_func) +
+                             (longlong)puVar15);
+            uVar5 = *puVar2;
+            uVar10 = puVar2[1];
+            uVar11 = puVar2[2];
+            uVar12 = puVar2[3];
+            puVar2 = puVar15 + 0x10;
+            *puVar15 = *puVar1 ^ 0xaaaaaaaa;
+            puVar15[1] = uVar20 ^ 0xaaaaaaaa;
+            puVar15[2] = uVar3 ^ 0xaaaaaaaa;
+            puVar15[3] = uVar4 ^ 0xaaaaaaaa;
+            puVar1 = (uint *)(((longlong)&UNK_1400042e0 - (longlong)some_alloc_func) +
+                             (longlong)puVar2);
+            uVar6 = *puVar1;
+            uVar7 = puVar1[1];
+            uVar8 = puVar1[2];
+            uVar9 = puVar1[3];
+            puVar15[4] = uVar5 ^ 0xaaaaaaaa;
+            puVar15[5] = uVar10 ^ 0xaaaaaaaa;
+            puVar15[6] = uVar11 ^ 0xaaaaaaaa;
+            puVar15[7] = uVar12 ^ 0xaaaaaaaa;
+            puVar1 = (uint *)(((longlong)&PTR_DAT_1400042f0 - (longlong)some_alloc_func) +
+                             (longlong)puVar2);
+            uVar20 = *puVar1;
+            uVar3 = puVar1[1];
+            uVar4 = puVar1[2];
+            uVar5 = puVar1[3];
+            puVar15[8] = uVar6 ^ 0xaaaaaaaa;
+            puVar15[9] = uVar7 ^ 0xaaaaaaaa;
+            puVar15[10] = uVar8 ^ 0xaaaaaaaa;
+            puVar15[0xb] = uVar9 ^ 0xaaaaaaaa;
+            puVar15[0xc] = uVar20 ^ 0xaaaaaaaa;
+            puVar15[0xd] = uVar3 ^ 0xaaaaaaaa;
+            puVar15[0xe] = uVar4 ^ 0xaaaaaaaa;
+            puVar15[0xf] = uVar5 ^ 0xaaaaaaaa;
+            puVar15 = puVar2;
+          } while (uVar19 < 0xc0);
+          if (0xc5 < uVar19) goto LAB_1400018f8;
+        }
+        pcVar17 = (code *)((longlong)(int)starts_at_0 + (longlong)some_alloc_func);
+        do {
+          uVar20 = (int)starts_at_0 + 1;
+          starts_at_0 = (ulonglong)uVar20;
+          *pcVar17 = (code)((byte)pcVar17[(longlong)&DAT_140004300 - (longlong)some_alloc_func] ^
+                           0xaa);
+          pcVar17 = pcVar17 + 1;
+        } while (uVar20 < 0xc6);
+      }
+LAB_1400018f8:
+      _alloc_func_probably_copies_data_here = 0;
+      DAT_14000e338 = 0;
+      (*(code *)some_alloc_func)(&challenge_text,&alloc_func_probably_copies_data_here);
+      local_548[0] = 0;
+      puVar18 = &alloc_func_probably_copies_data_here;
+      some_sha1_hash((longlong)&alloc_func_probably_copies_data_here,
+                     (BYTE **)&hashed_alloc_func_data_copy,local_548);
+      _alloc_func_probably_copies_data_here = 0;
+      DAT_14000e338 = 0;
+      uVar16 = hash_user_in_and_check((ulonglong)puVar18);
+      if ((int)uVar16 == 0) {
+        fail_func("YOU DIDN\'T SAY THE MAGIC WORD!\n");
+      }
+      else {
+        win_func();
+      }
+      goto LAB_140001991;
+    }
+  }
+  fail_func("DEBUGGER DETECTED!!!\n");
+LAB_140001991:
+  some_is_processor_feature_thing(local_18 ^ (ulonglong)auStackY1400);
+  return;
+}
+
+// Build up harcoded key based on if hashed input is correct
+undefined8 hash_user_in_and_check(ulonglong param_1)
+
+{
+  undefined2 *puVar1;
+  BYTE *pBVar2;
+  undefined8 uVar3;
+  undefined8 uVar4;
+  ulonglong local_res8;
+  BYTE *local_res10 [3];
+  
+  uVar4 = 0;
+  uVar3 = 0;
+  local_res10[0] = (BYTE *)0x0;
+  local_res8 = param_1 & 0xffffffff00000000;
+  FUN_140002000(DAT_14000e368,local_res10,(uint *)&local_res8);
+  puVar1 = DAT_14000e350;
+  pBVar2 = local_res10[0];
+  do {
+    if (*pBVar2 != pBVar2[DAT_14000e358 - (longlong)local_res10[0]]) goto LAB_140001537;
+    pBVar2 = pBVar2 + 1;
+  } while ((longlong)pBVar2 - (longlong)local_res10[0] < 2);
+  pBVar2 = local_res10[0] + 2;
+  *DAT_14000e350 = 0xd8cd;
+  do {
+    if (*pBVar2 != pBVar2[DAT_14000e358 - (longlong)local_res10[0]]) goto LAB_140001537;
+    pBVar2 = pBVar2 + 1;
+  } while ((longlong)(pBVar2 + (-2 - (longlong)local_res10[0])) < 2);
+  puVar1[1] = 0xdccb;
+  pBVar2 = local_res10[0] + 4;
+  do {
+    if (*pBVar2 != pBVar2[DAT_14000e358 - (longlong)local_res10[0]]) goto LAB_140001537;
+    pBVar2 = pBVar2 + 1;
+  } while ((longlong)(pBVar2 + (-4 - (longlong)local_res10[0])) < 2);
+  puVar1[2] = 0xc8cf;
+  pBVar2 = local_res10[0] + 6;
+  do {
+    uVar4 = uVar3;
+    if (*pBVar2 != pBVar2[DAT_14000e358 - (longlong)local_res10[0]]) goto LAB_140001537;
+    pBVar2 = pBVar2 + 1;
+  } while ((longlong)(pBVar2 + (-6 - (longlong)local_res10[0])) < 2);
+  puVar1[3] = 0xcccf;
+  pBVar2 = local_res10[0] + 8;
+  do {
+    if (*pBVar2 != pBVar2[DAT_14000e358 - (longlong)local_res10[0]]) goto LAB_140001537;
+    pBVar2 = pBVar2 + 1;
+  } while ((longlong)(pBVar2 + (-8 - (longlong)local_res10[0])) < 2);
+  puVar1[4] = 0xd8c5;
+  pBVar2 = local_res10[0] + 10;
+  do {
+    if (*pBVar2 != pBVar2[DAT_14000e358 - (longlong)local_res10[0]]) goto LAB_140001537;
+    pBVar2 = pBVar2 + 1;
+  } while ((longlong)(pBVar2 + (-10 - (longlong)local_res10[0])) < 2);
+  puVar1[5] = 0xd9cf;
+  pBVar2 = local_res10[0] + 0xc;
+  do {
+    if (*pBVar2 != pBVar2[DAT_14000e358 - (longlong)local_res10[0]]) goto LAB_140001537;
+    pBVar2 = pBVar2 + 1;
+  } while ((longlong)(pBVar2 + (-0xc - (longlong)local_res10[0])) < 2);
+  *(undefined *)(puVar1 + 6) = 0xc2;
+  pBVar2 = local_res10[0] + 0xe;
+  do {
+    if (*pBVar2 != pBVar2[DAT_14000e358 - (longlong)local_res10[0]]) goto LAB_140001537;
+    pBVar2 = pBVar2 + 1;
+  } while ((longlong)(pBVar2 + (-0xe - (longlong)local_res10[0])) < 2);
+  *(undefined *)((longlong)puVar1 + 0xd) = 0xcb;
+  pBVar2 = local_res10[0] + 0x10;
+  do {
+    if (*pBVar2 != pBVar2[DAT_14000e358 - (longlong)local_res10[0]]) goto LAB_140001537;
+    pBVar2 = pBVar2 + 1;
+  } while ((longlong)(pBVar2 + (-0x10 - (longlong)local_res10[0])) < 2);
+  *(undefined *)(puVar1 + 7) = 0xdc;
+  pBVar2 = local_res10[0] + 0x12;
+  do {
+    if (*pBVar2 != pBVar2[DAT_14000e358 - (longlong)local_res10[0]]) goto LAB_140001537;
+    pBVar2 = pBVar2 + 1;
+  } while ((longlong)(pBVar2 + (-0x12 - (longlong)local_res10[0])) < 2);
+  *(undefined *)((longlong)puVar1 + 0xf) = 0xcf;
+  uVar4 = 1;
+LAB_140001537:
+  if (local_res10[0] != (BYTE *)0x0) {
+    VirtualFree(local_res10[0],0,0x8000);
+  }
+  return uVar4;
+}
+
+// Build up harcoded key based on if hashed input is correct patched
+undefined8 hash_user_in_and_check(ulonglong param_1)
+
+{
+  undefined2 *puVar1;
+  BYTE *hash_ptr;
+  ulonglong local_res8;
+  BYTE *hash_result [3];
+  
+  hash_result[0] = (BYTE *)0x0;
+  local_res8 = param_1 & 0xffffffff00000000;
+  some_sha1_hash(console_read_buff,hash_result,(uint *)&local_res8);
+  puVar1 = some_interest_16_bytes;
+  hash_ptr = hash_result[0];
+  do {
+    hash_ptr = hash_ptr + 1;
+  } while ((longlong)hash_ptr - (longlong)hash_result[0] < 2);
+  hash_ptr = hash_result[0] + 2;
+  *some_interest_16_bytes = 0xd8cd;
+  do {
+    hash_ptr = hash_ptr + 1;
+  } while ((longlong)(hash_ptr + (-2 - (longlong)hash_result[0])) < 2);
+  puVar1[1] = 0xdccb;
+  hash_ptr = hash_result[0] + 4;
+  do {
+    hash_ptr = hash_ptr + 1;
+  } while ((longlong)(hash_ptr + (-4 - (longlong)hash_result[0])) < 2);
+  puVar1[2] = 0xc8cf;
+  hash_ptr = hash_result[0] + 6;
+  do {
+    hash_ptr = hash_ptr + 1;
+  } while ((longlong)(hash_ptr + (-6 - (longlong)hash_result[0])) < 2);
+  puVar1[3] = 0xcccf;
+  hash_ptr = hash_result[0] + 8;
+  do {
+    hash_ptr = hash_ptr + 1;
+  } while ((longlong)(hash_ptr + (-8 - (longlong)hash_result[0])) < 2);
+  puVar1[4] = 0xd8c5;
+  hash_ptr = hash_result[0] + 10;
+  do {
+    hash_ptr = hash_ptr + 1;
+  } while ((longlong)(hash_ptr + (-10 - (longlong)hash_result[0])) < 2);
+  puVar1[5] = 0xd9cf;
+  hash_ptr = hash_result[0] + 0xc;
+  do {
+    hash_ptr = hash_ptr + 1;
+  } while ((longlong)(hash_ptr + (-0xc - (longlong)hash_result[0])) < 2);
+  *(undefined *)(puVar1 + 6) = 0xc2;
+  hash_ptr = hash_result[0] + 0xe;
+  do {
+    hash_ptr = hash_ptr + 1;
+  } while ((longlong)(hash_ptr + (-0xe - (longlong)hash_result[0])) < 2);
+  *(undefined *)((longlong)puVar1 + 0xd) = 0xcb;
+  hash_ptr = hash_result[0] + 0x10;
+  do {
+    hash_ptr = hash_ptr + 1;
+  } while ((longlong)(hash_ptr + (-0x10 - (longlong)hash_result[0])) < 2);
+  *(undefined *)(puVar1 + 7) = 0xdc;
+  hash_ptr = hash_result[0] + 0x12;
+  do {
+    hash_ptr = hash_ptr + 1;
+  } while ((longlong)(hash_ptr + (-0x12 - (longlong)hash_result[0])) < 2);
+  *(undefined *)((longlong)puVar1 + 0xf) = 0xcf;
+  if (hash_result[0] != (BYTE *)0x0) {
+    VirtualFree(hash_result[0],0,0x8000);
+  }
+  return 1;
+}
+
+// function that prints out the flag
+void win_func(void)
+
+{
+  uint *puVar1;
+  uint uVar2;
+  uint uVar3;
+  undefined8 *puVar4;
+  uint *lpAddress;
+  HANDLE hConsoleOutput;
+  byte *pbVar5;
+  int iVar6;
+  longlong lVar7;
+  longlong j;
+  undefined auStackY184 [32];
+  uint *local_88;
+  uint *local_80;
+  uint local_78 [2];
+  undefined8 local_70;
+  undefined local_68;
+  undefined8 local_60;
+  undefined local_58;
+  ulonglong buff_to_write;
+  ulonglong uStack72;
+  undefined8 local_40;
+  undefined8 local_38;
+  undefined8 local_30;
+  undefined local_28;
+  ulonglong local_20;
+  longlong i;
+  
+  puVar4 = some_interest_16_bytes;
+  local_20 = DAT_140006008 ^ (ulonglong)auStackY184;
+  local_68 = 0;
+  puVar1 = (uint *)((longlong)some_interest_16_bytes + 4);
+  uVar2 = *(uint *)(some_interest_16_bytes + 1);
+  uVar3 = *(uint *)((longlong)some_interest_16_bytes + 0xc);
+  local_88 = (uint *)0x0;
+  local_80 = (uint *)0x0;
+  *(uint *)some_interest_16_bytes = *(uint *)some_interest_16_bytes ^ 0xaaaaaaaa;
+  *(uint *)((longlong)puVar4 + 4) = *puVar1 ^ 0xaaaaaaaa;
+  *(uint *)(puVar4 + 1) = uVar2 ^ 0xaaaaaaaa;
+  *(uint *)((longlong)puVar4 + 0xc) = uVar3 ^ 0xaaaaaaaa;
+  local_70 = *puVar4;
+  local_58 = 0;
+  local_60 = puVar4[1];
+  some_sha1_hash((longlong)&local_70,(BYTE **)&local_88,local_78);
+  some_sha1_hash((longlong)&local_60,(BYTE **)&local_80,local_78);
+  lpAddress = local_80;
+  puVar1 = local_88;
+  buff_to_write = 0;
+  uStack72 = 0;
+  local_40 = 0;
+  local_38 = 0;
+  local_30 = 0;
+  local_28 = 0;
+  if ((((ulonglong *)((longlong)local_88 + 0x13U) < &buff_to_write) ||
+      (i = 0, (uint *)((longlong)&local_40 + 3U) < local_88)) &&
+     (((ulonglong *)((longlong)local_80 + 0x13U) < &buff_to_write ||
+      (i = 0, (uint *)((longlong)&local_40 + 3U) < local_80)))) {
+    i = 0x10;
+    buff_to_write = CONCAT44(local_80[1] ^ local_88[1],*local_80 ^ *local_88) ^ 0x1d296fa0476f794e;
+    uStack72 = CONCAT44(local_80[3] ^ local_88[3],local_80[2] ^ local_88[2]) ^ 0xc4841e9accc20d93;
+  }
+  j = 0x14;
+  pbVar5 = (byte *)(i + (longlong)local_88);
+  lVar7 = 0x14 - i;
+  iVar6 = (int)lVar7;
+  do {
+    pbVar5[(longlong)&buff_to_write - (longlong)local_88] =
+         pbVar5[(longlong)&DAT_1400043e8 - (longlong)local_88] ^
+         pbVar5[(longlong)local_80 - (longlong)local_88] ^ *pbVar5;
+    pbVar5 = pbVar5 + 1;
+    lVar7 = lVar7 + -1;
+  } while (lVar7 != 0);
+  lVar7 = (longlong)((int)i + iVar6);
+  i = lVar7;
+  do {
+    *(byte *)((longlong)&buff_to_write + i) =
+         (&DAT_1400043e8)[i] ^ *(byte *)((longlong)local_88 + (i - lVar7)) ^
+         *(byte *)((longlong)local_80 + (i - lVar7));
+    i = i + 1;
+    j = j + -1;
+  } while (j != 0);
+  local_78[0] = 0;
+  hConsoleOutput = GetStdHandle(0xfffffff5);
+  WriteConsoleA(hConsoleOutput,&buff_to_write,0x29,local_78,(LPVOID)0x0);
+  if (lpAddress != (uint *)0x0) {
+    VirtualFree(lpAddress,0,0x8000);
+  }
+  if (puVar1 != (uint *)0x0) {
+    VirtualFree(puVar1,0,0x8000);
+  }
+  some_is_processor_feature_thing(local_20 ^ (ulonglong)auStackY184);
+  return;
+}

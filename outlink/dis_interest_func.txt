@@ -1,0 +1,328 @@
+undefined4 interest_func(void)
+
+{
+  HANDLE hConsoleOutput;
+  HANDLE hConsoleInput;
+  uint uVar1;
+  HANDLE hConsoleInput_00;
+  HANDLE pvVar2;
+  BOOL success;
+  HANDLE std_handle;
+  uint data_len;
+  uint uVar3;
+  int psuccess;
+  DWORD hsuccess;
+  undefined4 extraout_ECX;
+  undefined4 extraout_ECX_00;
+  undefined4 extraout_ECX_01;
+  undefined4 extraout_ECX_02;
+  undefined4 extraout_ECX_03;
+  undefined4 extraout_ECX_04;
+  undefined4 extraout_ECX_05;
+  undefined4 extraout_ECX_06;
+  undefined1 *puVar4;
+  char *pcVar5;
+  LPDWORD pDVar6;
+  LPDWORD pDVar7;
+  uint *puVar8;
+  uint *puVar9;
+  undefined4 *_Dest;
+  undefined4 *destplus2;
+  _CONSOLE_SCREEN_BUFFER_INFO *_Dest_00;
+  SHORT *pSVar10;
+  bool bVar11;
+  uint current_char_entered_index;
+  DWORD hashed_size;
+  DWORD hsize;
+  DWORD local_228;
+  uint read_buf;
+  undefined4 local_21d;
+  undefined4 local_219;
+  undefined4 local_215;
+  undefined4 local_211;
+  undefined local_20d;
+  undefined4 hash_result1;
+  undefined4 local_208;
+  undefined4 local_204;
+  undefined4 local_200;
+  undefined4 local_1fc;
+  undefined4 hash_result [8];
+  DWORD outwrite1 [9];
+  DWORD outwrite2 [9];
+  undefined8 op_on_hashed_pass;
+  undefined local_168;
+  _CONSOLE_SCREEN_BUFFER_INFO local_164 [2];
+  undefined local_124 [4];
+  _CONSOLE_SCREEN_BUFFER_INFO read_bytes [12];
+  undefined *local_18;
+  undefined4 *hash_result_addr;
+  byte hresult_byte;
+  
+  local_18 = &stack0x00000004;
+  FUN_00402190();
+  hash_result1 = 0;
+  local_208 = 0;
+  data_len = 0;
+  local_204 = 0;
+  local_200 = 0;
+  local_1fc = 0;
+  do {
+    *(undefined4 *)((int)hash_result + data_len) = 0;
+    data_len = data_len + 4;
+  } while (data_len < 0x20);
+  local_21d = 0x33323130;
+  local_219 = 0x37363534;
+  local_215 = 0x62613938;
+  local_211 = 0x66656463;
+  local_20d = 0;
+  hConsoleOutput = GetStdHandle(0xfffffff5);
+  hConsoleInput = GetStdHandle(0xfffffff6);
+  puVar4 = &DAT_004060d4;
+  data_len = 0;
+  while( true ) {
+    (&DAT_00407020)[data_len] = puVar4[data_len];
+    uVar1 = data_len + 2;
+    (&DAT_00407021)[data_len] = puVar4[data_len + 1];
+    if (uVar1 == 0x28) break;
+    puVar4 = *(undefined1 **)(&UNK_004065c0 + (uVar1 >> 1) * 4);
+    data_len = uVar1;
+  }
+  outwrite1[0] = 0;
+  op_on_hashed_pass._0_4_ = 0;
+  op_on_hashed_pass._4_4_ = 0x280051;
+  std_handle = GetStdHandle(0xfffffff5);
+  success = GetConsoleScreenBufferInfo(std_handle,local_164);
+  if ((success != 0) && (local_164[0].dwSize.X < 0x51)) {
+    SetConsoleScreenBufferSize(std_handle,(COORD)0x280051);
+    SetConsoleWindowInfo(std_handle,0,(SMALL_RECT *)&op_on_hashed_pass);
+  }
+  success = GetConsoleScreenBufferInfo(std_handle,read_bytes);
+  if (success != 0) {
+    success = FillConsoleOutputCharacterA
+                        (std_handle,' ',(int)read_bytes[0].dwSize.Y * (int)read_bytes[0].dwSize.X,
+                         (COORD)0x0,outwrite2);
+    if (success != 0) {
+      success = GetConsoleScreenBufferInfo(std_handle,read_bytes);
+      if (success != 0) {
+        success = FillConsoleOutputAttribute
+                            (std_handle,read_bytes[0].wAttributes,
+                             (int)read_bytes[0].dwSize.Y * (int)read_bytes[0].dwSize.X,(COORD)0x0,
+                             outwrite2);
+        if (success != 0) {
+          SetConsoleCursorPosition(std_handle,(COORD)0x0);
+        }
+      }
+    }
+  }
+  psuccess = 0x4e;
+  WriteConsoleA(std_handle,&DAT_00406619,1,outwrite1,(LPVOID)0x0);
+  do {
+    WriteConsoleA(std_handle,&DAT_00406617,1,outwrite1,(LPVOID)0x0);
+    psuccess = psuccess + -1;
+  } while (psuccess != 0);
+  WriteConsoleA(std_handle,&DAT_00406615,1,outwrite1,(LPVOID)0x0);
+  WriteConsoleA(std_handle,&DAT_00406612,1,outwrite1,(LPVOID)0x0);
+  FUN_00401610(extraout_ECX,0);
+  FUN_00401610(extraout_ECX_00,0);
+  FUN_00401610(extraout_ECX_01,0);
+  FUN_00401610(extraout_ECX_02,1);
+  FUN_00401610(extraout_ECX_03,1);
+  FUN_00401610(extraout_ECX_04,1);
+  FUN_00401610(extraout_ECX_05,0);
+  WriteConsoleA(std_handle,&DAT_00406611,1,outwrite1,(LPVOID)0x0);
+  psuccess = 0x4e;
+  do {
+    WriteConsoleA(std_handle,&DAT_00406617,1,outwrite1,(LPVOID)0x0);
+    psuccess = psuccess + -1;
+  } while (psuccess != 0);
+  WriteConsoleA(std_handle,&DAT_00406610,1,outwrite1,(LPVOID)0x0);
+  WriteConsoleA(std_handle,&DAT_00406612,1,outwrite1,(LPVOID)0x0);
+  FUN_00401610(extraout_ECX_06,0);
+  WriteConsoleA(std_handle,&DAT_00406618,1,outwrite1,(LPVOID)0x0);
+  psuccess = 0x4e;
+  do {
+    WriteConsoleA(std_handle,&DAT_00406617,1,outwrite1,(LPVOID)0x0);
+    psuccess = psuccess + -1;
+  } while (psuccess != 0);
+  WriteConsoleA(std_handle,&DAT_00406614,1,outwrite1,(LPVOID)0x0);
+  FUN_00401570();
+  do {
+    outwrite1[0] = 0;
+    std_handle = GetStdHandle(0xfffffff5);
+    hConsoleInput_00 = GetStdHandle(0xfffffff6);
+    pvVar2 = GetStdHandle(0xfffffff6);
+    local_164[0].dwSize = 0;
+    GetConsoleMode(pvVar2,(LPDWORD)local_164);
+    data_len = local_164[0].dwSize & 0xfffffff9;
+    uVar1 = local_164[0].dwSize & 4;
+    local_164[0].dwSize = local_164[0].dwSize | 6;
+    if (uVar1 != 0) {
+      local_164[0].dwSize = data_len;
+    }
+    SetConsoleMode(pvVar2,local_164[0].dwSize);
+    current_char_entered_index = 0;
+    while( true ) {
+      success = ReadConsoleA(hConsoleInput_00,&read_buf,1,outwrite1,
+                             (PCONSOLE_READCONSOLE_CONTROL)0x0);
+      if (((success == 0) || ((char)read_buf == '\r' || (char)read_buf == '\n')) ||
+         (0xfe < current_char_entered_index)) break;
+      if (DAT_0040704c == 0) {
+LAB_0040392e:
+        if ((char)read_buf != '\b') goto LAB_00403937;
+LAB_00403ab1:
+        if (current_char_entered_index != 0) {
+          WriteConsoleA(std_handle,&DAT_004061e5,3,outwrite1,(LPVOID)0x0);
+          current_char_entered_index = current_char_entered_index - 1;
+        }
+      }
+      else {
+        outwrite2[0] = 0;
+        pvVar2 = GetStdHandle(0xfffffff5);
+        success = GetConsoleScreenBufferInfo(pvVar2,local_164);
+        if (success == 0) goto LAB_0040392e;
+        psuccess = 0x4e;
+        SetConsoleCursorPosition(pvVar2,(COORD)0x80000);
+        WriteConsoleA(pvVar2,&DAT_00406611,1,outwrite2,(LPVOID)0x0);
+        do {
+          WriteConsoleA(pvVar2,&DAT_00406617,1,outwrite2,(LPVOID)0x0);
+          psuccess = psuccess + -1;
+        } while (psuccess != 0);
+        WriteConsoleA(pvVar2,&DAT_00406610,1,outwrite2,(LPVOID)0x0);
+        SetConsoleCursorPosition(pvVar2,local_164[0].dwCursorPosition);
+        DAT_0040704c = 0;
+        if ((char)read_buf == '\b') goto LAB_00403ab1;
+LAB_00403937:
+        *(char *)((int)&read_bytes[0].dwSize.X + current_char_entered_index) = (char)read_buf;
+        if (current_char_entered_index < 0x4c) {
+          current_char_entered_index = current_char_entered_index + 1;
+        }
+        else {
+          WriteConsoleA(std_handle,&DAT_004061e9,3,outwrite1,(LPVOID)0x0);
+        }
+        WriteConsoleA(std_handle,&DAT_004061ed,1,outwrite1,(LPVOID)0x0);
+      }
+    }
+                    /* null byte at end of read in string */
+    *(undefined *)((int)&read_bytes[0].dwSize.X + current_char_entered_index) = 0;
+    std_handle = GetStdHandle(0xfffffff6);
+    local_164[0].dwSize = 0;
+    GetConsoleMode(std_handle,(LPDWORD)local_164);
+    data_len = local_164[0].dwSize & 0xfffffff9;
+    uVar1 = local_164[0].dwSize & 4;
+    local_164[0].dwSize = local_164[0].dwSize | 6;
+    if (uVar1 != 0) {
+      local_164[0].dwSize = data_len;
+    }
+    SetConsoleMode(std_handle,local_164[0].dwSize);
+    data_len = strlen((char *)read_bytes,0x100);
+    hashed_size = 0x14;
+    hsuccess = do_some_hash((BYTE *)read_bytes,&hashed_size,data_len,0x8004,&hash_result1);
+    if (hsuccess == 0) {
+      hash_result_addr = &hash_result1;
+      pcVar5 = (char *)0x29;
+      _Dest = (undefined4 *)&op_on_hashed_pass;
+      do {
+        hresult_byte = *(byte *)hash_result_addr;
+        hash_result_addr = (undefined4 *)((int)hash_result_addr + 1);
+        destplus2 = (undefined4 *)((int)_Dest + 2);
+        sprintf((char *)_Dest,pcVar5,&DAT_004060c8,
+                (int)*(char *)((int)&local_21d + (uint)(hresult_byte >> 4)),
+                (int)*(char *)((int)&local_21d + (hresult_byte & 0xf)));
+        pcVar5 = pcVar5 + -2;
+        _Dest = destplus2;
+      } while (destplus2 != (undefined4 *)&local_168);
+      local_168 = 0;
+    }
+    puVar9 = (uint *)&DAT_00407020;
+    do {
+      puVar8 = puVar9;
+      uVar3 = *puVar8 + 0xfefefeff & ~*puVar8;
+      uVar1 = uVar3 & 0x80808080;
+      puVar9 = puVar8 + 1;
+    } while (uVar1 == 0);
+    bVar11 = (uVar3 & 0x8080) == 0;
+    if (bVar11) {
+      uVar1 = uVar1 >> 0x10;
+    }
+    if (bVar11) {
+      puVar9 = (uint *)((int)puVar8 + 6);
+    }
+    psuccess = strncmp((char *)&op_on_hashed_pass,&DAT_00407020,
+                       (size_t)((int)puVar9 + (-0x407023 - (uint)CARRY1((byte)uVar1,(byte)uVar1))));
+    if (psuccess != 0) {
+      FUN_00401bb0();
+      FUN_00401570();
+      hsize = 0x20;
+      hsuccess = do_some_hash((BYTE *)read_bytes,&hsize,data_len,0x800c,hash_result);
+      if (hsuccess == 0) {
+        hash_result_addr = hash_result;
+        _Dest_00 = local_164;
+        pcVar5 = (char *)0x41;
+        do {
+          pSVar10 = &(_Dest_00->dwSize).Y;
+          sprintf((char *)_Dest_00,pcVar5,&DAT_004060c8,
+                  (int)*(char *)((int)&local_21d + (uint)(*(byte *)hash_result_addr >> 4)),
+                  (int)*(char *)((int)&local_21d + (*(byte *)hash_result_addr & 0xf)));
+          hash_result_addr = (undefined4 *)((int)hash_result_addr + 1);
+          _Dest_00 = (_CONSOLE_SCREEN_BUFFER_INFO *)pSVar10;
+          pcVar5 = pcVar5 + -2;
+        } while (pSVar10 != (SHORT *)local_124);
+        local_124[0] = 0;
+      }
+      some_xor_func((int)outwrite1,(int)&DAT_00406640,(int)hash_result,0x21);
+      some_xor_func((int)outwrite2,(int)&DAT_00406620,(int)hash_result,0x21);
+      pDVar7 = outwrite1;
+      do {
+        pDVar6 = pDVar7;
+        uVar1 = *pDVar6 + 0xfefefeff & ~*pDVar6;
+        data_len = uVar1 & 0x80808080;
+        pDVar7 = pDVar6 + 1;
+      } while (data_len == 0);
+      bVar11 = (uVar1 & 0x8080) == 0;
+      if (bVar11) {
+        data_len = data_len >> 0x10;
+      }
+      if (bVar11) {
+        pDVar7 = (LPDWORD)((int)pDVar6 + 6);
+      }
+      WriteConsoleA(hConsoleOutput,outwrite1,
+                    (int)pDVar7 +
+                    ((-3 - (uint)CARRY1((byte)data_len,(byte)data_len)) - (int)outwrite1),&local_228
+                    ,(LPVOID)0x0);
+      puVar9 = outwrite2;
+      do {
+        puVar8 = puVar9;
+        uVar1 = *puVar8 + 0xfefefeff & ~*puVar8;
+        data_len = uVar1 & 0x80808080;
+        puVar9 = puVar8 + 1;
+      } while (data_len == 0);
+      bVar11 = (uVar1 & 0x8080) == 0;
+      if (bVar11) {
+        data_len = data_len >> 0x10;
+      }
+      if (bVar11) {
+        puVar9 = (uint *)((int)puVar8 + 6);
+      }
+      WriteConsoleA(hConsoleOutput,outwrite2,
+                    (int)puVar9 +
+                    ((-3 - (uint)CARRY1((byte)data_len,(byte)data_len)) - (int)outwrite2),&local_228
+                    ,(LPVOID)0x0);
+      std_handle = GetStdHandle(0xfffffff6);
+      read_buf = 0;
+      GetConsoleMode(std_handle,&read_buf);
+      uVar1 = read_buf & 0xfffffff9;
+      data_len = read_buf & 4;
+      read_buf = read_buf | 6;
+      if (data_len != 0) {
+        read_buf = uVar1;
+      }
+      SetConsoleMode(std_handle,read_buf);
+      WriteConsoleA(hConsoleOutput,&DAT_00406234,2,&local_228,(LPVOID)0x0);
+      WriteConsoleA(hConsoleOutput,"Press any key to end the program...\n",0x24,&local_228,
+                    (LPVOID)0x0);
+      ReadConsoleA(hConsoleInput,&read_buf,1,&local_228,(PCONSOLE_READCONSOLE_CONTROL)0x0);
+      return 0;
+    }
+    FUN_00401bb0();
+  } while( true );
+}

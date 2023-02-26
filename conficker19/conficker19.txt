@@ -1,0 +1,185 @@
+I opened up the pcap in wireshark.
+
+There were a few thing I noticed right away:
+1. Sequence of ack and push tcp packets.
+2. One tcp packet was larger than the rest at 16980 bytes.
+3. Looking at the data of the large packet showed strings that indicated that it might be an executable.
+4. Some packet data had readable text that was prefixed by a single letter (S, P, F). I didn't know what this meant that this point, but I guessed that it was some sort of control code.
+
+I filtered the packets to only show the ones with data to make it easier to read (filter: tcp.flags.push == 1)
+
+I exported the data section of the large packet as a bin and ran the file command on it, but it did not indicate it was an executable. I tried opening it in Ghidra, but Ghidra was not able to make sense of it. So I thought it might be incomplete at this point.
+
+I looked at some of the other packets with data and found one with the text "elf" in it, so I knew there was an executable being transferred and that it was being transferred in chunks. I used "follow tcp stream" in wireshark to export all the data bytes as a single binary. I made sure to strip off the parts of the stream that did not look like they were part of the elf file. Now I ran the file command on the binary and it showed the following:
+extracted.bin: ELF 64-bit LSB shared object, x86-64, version 1 (SYSV), dynamically linked, interpreter /lib64/ld-linux-x86-64.so.2, for GNU/Linux 3.2.0, BuildID[sha1]=af843cf7cf8bc40881b88c51a87d85db2c51006d, with debug_info, not stripped
+
+I ran strings on it and found some interesting strings:
+AES_encrypt
+AES_set_encrypt_key
+socket
+htons
+fopen
+connect
+recv
+KEY: %s
+FILE: %s
+/home/jeff/Desktop/ctf_pcap_forensic_analysis/chal2
+
+Based on the strings it looks like this executable is doing some encryption, reading a file, and sending/receiving data from a socket.
+
+I opened the bin in ghidra and navigated to the entry point. I was able to determine what was happening at this point. I have included the decompilation below with my comments inserted to explain each step:
+
+int main(void)
+{
+  long lVar1;
+  int iVar2;
+  FILE *__stream;
+  size_t sVar3;
+  long in_FS_OFFSET;
+  int i;
+  int sock;
+  int ret;
+  FILE *fp;
+  sockaddr_in addr;
+  AES_KEY aesKey;
+  char key [16];
+  char block [16];
+  char cypher [16];
+  char buff [128];
+  char file_name [128];
+  
+  lVar1 = *(long *)(in_FS_OFFSET + 0x28);
+
+  memset(key,0,0x20);
+  memset(file_name,0,0x80);
+
+  // Default filename (f_dnes/.gal), maybe a copy of this executable
+  file_name._0_8_ = 0x665f646e65732f2e;
+  file_name._8_4_ = 0x67616c;
+
+  // Create a socket
+  sock = socket(2,1,0);
+  if (-1 < sock) {
+    // Set the socket to localhost port 1234 and connect
+    addr.sin_family = 2;
+    addr.sin_addr = 0;
+    addr.sin_addr = inet_addr("127.0.0.1");
+    addr.sin_port = htons(0x4d2);
+    iVar2 = connect(sock,(sockaddr *)&addr,0x10);
+    if (iVar2 != -1) {
+      do {
+        // Receive loop
+        while( true ) {
+          memset(buff,0,0x80);
+
+          // Receive data from the socket and put it in buff
+          recv(sock,buff,0x80,0);
+
+          // If the first received byte is 'S' break out of this loop
+          if (buff[0] == 'S') break;
+
+          // If the first received byte is 'P' store the next 16 bytes as the key 
+          if (buff[0] == 'P') {
+            key._0_8_ = buff._1_8_;
+            key._8_8_ = buff._9_8_;
+            printf("KEY: %s\n",key);
+
+            // Init our key, this is a function from openssl
+            AES_set_encrypt_key((uchar *)key,0x80,(AES_KEY *)&aesKey);
+          }
+
+          // If the first received byte is 'F' store the next 128 bytes as the file_name 
+          else if (buff[0] == 'F') {
+            sVar3 = strlen(buff);
+            cypher[sVar3 + 0xf] = '\0';
+            strncpy(file_name,buff + 1,0x80);
+            printf("FILE: %s\n",file_name);
+          }
+        }
+
+        // At this point we have broken out of the loop, which means we just received data staring with 'S'
+
+        // If we have a valid key at this point, init the AES key
+        if (key[0] != '\0') {
+          AES_set_encrypt_key((uchar *)key,0x80,(AES_KEY *)&aesKey);
+        }
+
+        // Open/read the file_name we got or the default value if we didn't get anything
+        __stream = fopen(file_name,"r");
+        while (sVar3 = fread(block,1,0x10,__stream), sVar3 != 0) {
+          if (key[0] == '\0') {
+            // If our key value is not valid, just send the file content we read.
+            // Probably corresponding to the binary that was sent since it was not encrypted.
+            send(sock,block,0x10,0);
+          }
+          else {
+            // Otherwise, scramble the file bytes
+            for (i = 0; i < 0xf; i = i + 1) {
+              block[i + 1] = block[i + 1] ^ block[i];
+            }
+
+            // Then encrypt the file bytes
+            AES_encrypt((uchar *)block,(uchar *)cypher,(AES_KEY *)&aesKey);
+            
+            // And finally send
+            send(sock,cypher,0x10,0);
+          }
+          memset(block,0,0x10);
+          memset(cypher,0,0x10);
+        }
+        fclose(__stream);
+      } while( true );
+    }
+  }
+  if (lVar1 == *(long *)(in_FS_OFFSET + 0x28)) {
+    return -1;
+  }
+                    /* WARNING: Subroutine does not return */
+  __stack_chk_fail();
+}
+
+So based on the code above, here is what I learned:
+1. The first byte letters S, P, F are control codes.
+2. 'S' means to break out of the receive loop and send the contents of a file. Either the default file (f_dnes/.gal) or a filename given by a previously received packet starting with the 'F' control code.
+3. 'F' means to take the following bytes as a filename that will be read and sent on the next 'S' control code received.
+4. 'P' means to take the following bytes as an encryption key.
+5. Encryption is done using AES_set_encrypt_key and AES_encrypt which means openssl is being used and it is AES ECB mode.
+6. The file bytes are scrambled with successive xor before being encrypted, so we will need to do the reverse process.
+
+Going back to the final few packets in the stream, I saw that a file (F code) named flag.txt is being requested. Also I saw an encryption password (P code) being sent: Prestidigitation. The next two packets received have what looks like encrypted bytes in 16 byte blocks (padded). So the goal is to decrypt them with what we have learned. I made a quick python script to do this:
+
+from Crypto.Cipher import AES
+
+def unscramble(byte_string):
+    result = bytearray(byte_string)
+
+    # Do the reverse of what the binary did: bytes[i+1] = bytes[i+1] ^ bytes[i])
+    for i in reversed(range(1,16)):
+        result[i] = result[i] ^ result[i - 1]
+    return result
+
+if __name__ == "__main__":
+    # Taken from pcap
+    key = b"Prestidigitation"
+    payload_bytes1 = bytes.fromhex("e1dbfd6826a14f279fafe76982333070")
+    payload_bytes2 = bytes.fromhex("a0595e10eec5ffd64cf3569eac102451")
+
+    # Init cypher as ECB mode to match what openssl will use for AES_encrypt
+    decipher = AES.new(key, AES.MODE_ECB)
+
+    # Decrypt using key
+    msg1 = decipher.decrypt(payload_bytes1)
+    msg2 = decipher.decrypt(payload_bytes2)
+
+    # Print what we got so far, should still be scrambled at this point
+    print(msg1 + msg2)
+
+    # Unscramble both messages
+    result1 = unscramble(bytearray(msg1))
+    result2 = unscramble(bytearray(msg2))
+    
+    # At this point we should have the decrypted and decoded messages
+    print(result1 + result2)
+
+The output of this script gives the decrypted flag:
+bytearray(b'flag{CATS_CATS_ARE_NICE}\n\x00\x00\x00\x00\x00\x00\x00')

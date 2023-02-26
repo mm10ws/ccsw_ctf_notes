@@ -1,0 +1,3 @@
+https://www.geeksforgeeks.org/get-post-requests-using-python/
+https://github.com/rwinch/encryption-not-signing
+https://blog.skullsecurity.org/2016/going-the-other-way-with-padding-oracles-encrypting-arbitrary-data

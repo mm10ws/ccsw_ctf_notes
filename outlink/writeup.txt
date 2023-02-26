@@ -1,0 +1,293 @@
+After I downloaded the zer0cool.dade file, I checked to see what type of file it was with the file command. It turned out to be a zip file:
+
+zer0cool.dade: Zip archive data, at least v6.3 to extract, compression method=lzma
+
+I renamed it to a zip file and tried to unzip it on windows, but I got an error. But then I used 7zip and it unzipped fine, not sure if this was part of the challenge. Inside of the archive there was a new file called ac1dburn.kate. I checked it with the file command and it was a Windows executable:
+
+ac1dburn.kate: PE32 executable (console) Intel 80386 (stripped to external PDB), for MS Windows
+
+I ran it through strings and found some interesting results:
+
+CryptAcquireContext failed
+%s: %lu
+CryptCreateHash failed
+CryptHashData failed
+CryptGetHashParam failed
+%s: 0x%lx
+%c%c
+931672ef8007efadcb5edabc82ccf760b4ad1e29
+Welcome to outLink!
+  We were recently made aware that our password database may have been
+  compromised. Please enter your previous password to verify your identity
+  in order to begin the process of changing your password.
+Incorrect Password, Try Again
+Thank you. Decrypted Message Below.
+Press any key to end the program...
+249cec6cc0daeb14e340af88f39a8d2b56799fe7 (These turned out to be important)
+c60266a8adad2f8ee67d793b4fd3fd0ffd73cc61
+d3bd1eb71f1f14f75f7e71cdad5fe0f5ade07f52
+fdddbaa4a5451f116b1dd3dd1289a04e50e968bc
+edcaef342de393ea82accad611d1c1b4242d2b36
+e97ba6aed5561a3d7fa95bc8f799387219d9c1e7
+e660ef2f99888ce5e7e2884d4193540d2b1fd0b4
+5ae8db5b72c7e3536f259a005b63117cbbca0505
+47265105ec5517e46aec2ed5310c177e1e811af8
+680254bad1d7ca0d65ec46aaa315d363abf6a50a
+f3ac5f0709efe8be7fccedc4955eb354dce78d24
+fb10549407078744164d6102c809ccd50cc87de8
+e85e7aea15b160d4c482e06f253752bd77d8ef8e
+7d65c1633ac5383c94fb21b067fdf30aa10bc1fe
+31216940d23924a5761bff2a101893cfccfc625d
+7994ebae30a63934992a16deca856d50596bc1a9
+4504274f6214a3c420396e17ce5edf044344baf1
+4fb2f4c43c90a51b4cafec65661c7274e45b770c
+1b8cb242f7e28133bae0adefa873aa170486cb42
+
+Some of the strings looked like prompt messages to the user about entering a password and that the password database was leaked. There were also a series of strings that looked like hex encoded data. Finally, there were strings that indicated some hashing was being done. At this point, I ran the program on a Windows VM and confirmed it was a console password prompt. I guessed some passwords and got an incorrect password prompt. It looked like if I found the right password, I would be able to get the flag.
+
+I opened up the binary in ghidra and found the entry point. There was lots of code that looked like setup until I found an interesting function towards the end that had some ReadConsoleA and WriteConsoleA calls. I figured this would be how input is read in from the user and outputted to the terminal. Additionally, there was lots of code that looked like it was doing setup for the console (GetConsoleMode).
+
+I began looking through the decompilation for any areas that looked like data was being hashed, decoded, or output to the console. The logic was fairly complicated so I might not have caught all of it but here’s what I got:
+
+There was a function with calls to Windows API related to hashing. The function took in a pointer to data to hash, an in/out pointer to the hash result size, the number of bytes of the input to hash, and an algorithm ID to specify the type of hashing to perform. I had to fixup this function's signature because it looked like there was an out parameter being passed by EAX. It turned out that this parameter was the result of the hash operation. The hash was performed by first creating a hash context with CryptAcquireContext and CryptCreateHash. The data was hashed with CryptHashData and then copied to the output result with CryptGetHashParam. The first time this function was being called, it was called with ALG_ID == 0x8004 (sha1, which is weak so I thought that might be important later). The second time it was called, it was called with ALG_ID == 0x800c (sha256). See below for the decompiled code:
+
+DWORD __fastcall
+do_some_hash(BYTE *data_to_hash,DWORD *hashed_size,DWORD no_bytes_to_hash,ALG_ID hash_algo_id,
+            BYTE *hash_result)
+
+{
+  HANDLE hConsoleOutput;
+  BOOL success;
+  DWORD DVar1;
+  DWORD DVar2;
+  char *pcVar3;
+  HCRYPTPROV local_128;
+  HCRYPTHASH local_124;
+  DWORD local_120;
+  char write_console_buff [268];
+  
+  local_128 = 0;
+  local_124 = 0;
+  local_120 = 0;
+  hConsoleOutput = GetStdHandle(0xfffffff4);
+  success = CryptAcquireContextA(&local_128,(LPCSTR)0x0,(LPCSTR)0x0,0x18,0xf0000000);
+  if (success == 0) {
+    DVar1 = GetLastError();
+    DVar2 = snprintf(write_console_buff,0x100,"%s: %lu\n");
+    WriteConsoleA(hConsoleOutput,write_console_buff,DVar2,&local_120,(LPVOID)0x0);
+    return DVar1;
+  }
+  success = CryptCreateHash(local_128,hash_algo_id,0,0,&local_124);
+  if (success != 0) {
+    success = CryptHashData(local_124,data_to_hash,no_bytes_to_hash,0);
+    if (success == 0) {
+      DVar1 = GetLastError();
+      pcVar3 = "%s: %lu\n";
+    }
+    else {
+      success = CryptGetHashParam(local_124,2,hash_result,hashed_size,0);
+      if (success != 0) {
+        CryptReleaseContext(local_128,0);
+        CryptDestroyHash(local_124);
+        return 0;
+      }
+      DVar1 = GetLastError();
+      pcVar3 = "%s: 0x%lx\n";
+    }
+    DVar2 = snprintf(write_console_buff,0x100,pcVar3);
+    WriteConsoleA(hConsoleOutput,write_console_buff,DVar2,&local_120,(LPVOID)0x0);
+    CryptReleaseContext(local_128,0);
+    CryptDestroyHash(local_124);
+    return DVar1;
+  }
+  DVar1 = GetLastError();
+  DVar2 = snprintf(write_console_buff,0x100,"%s: %lu\n");
+  WriteConsoleA(hConsoleOutput,write_console_buff,DVar2,&local_120,(LPVOID)0x0);
+  CryptReleaseContext(local_128,0);
+  return DVar1;
+}
+
+After the hash was complete, some operations were being performed on the output of the hash and stored in op_on_hashed_pass:
+
+if (hsuccess == 0) {
+    hash_result_addr = &hash_result1;
+    pcVar5 = (char *)0x29;
+    _Dest = (undefined4 *)&op_on_hashed_pass;
+    do {
+    hresult_byte = *(byte *)hash_result_addr;
+    hash_result_addr = (undefined4 *)((int)hash_result_addr + 1);
+    destplus2 = (undefined4 *)((int)_Dest + 2);
+    sprintf((char *)_Dest,pcVar5,&DAT_004060c8,
+            (int)*(char *)((int)&local_21d + (uint)(hresult_byte >> 4)),
+            (int)*(char *)((int)&local_21d + (hresult_byte & 0xf)));
+    pcVar5 = pcVar5 + -2;
+    _Dest = destplus2;
+    } while (destplus2 != (undefined4 *)&local_168);
+    local_168 = 0;
+}
+
+Finally a strncmp was being performed between the modified output of the hash and some data:
+
+psuccess = strncmp((char *)&op_on_hashed_pass,&DAT_00407020,
+                       (size_t)((int)puVar9 + (-0x407023 - (uint)CARRY1((byte)uVar1,(byte)uVar1))));
+if (psuccess != 0) {
+  ...
+
+If that succeeded another hash was performed on the read in data, this time it’s a sha256. Then some xor operations are being done to the hash result in this function:
+
+void __cdecl some_xor_func(int decoded_data_ptr,int encoded_data,int buffer,int len)
+{
+  uint len_minus_1;
+  uint uVar1;
+  uint uVar2;
+  uint uVar3;
+  int iVar4;
+  uint uVar5;
+  uint uVar6;
+  uint uVar7;
+  uint local_38;
+  uint local_34;
+  uint local_30;
+  uint len_minus_one_x2;
+  uint local_24;
+  uint local_20;
+  
+  len_minus_1 = len - 1;
+  if (len_minus_1 != 0) {
+    len_minus_one_x2 = len_minus_1 >> 1;
+    local_34 = decoded_data_ptr + len_minus_one_x2;
+    uVar7 = len - 2;
+    local_38 = encoded_data + len_minus_one_x2;
+    local_24 = uVar7 - len_minus_one_x2;
+    local_20 = decoded_data_ptr + 4 + len_minus_one_x2;
+    local_30 = buffer + 5 + len_minus_one_x2;
+    uVar1 = 0;
+    do {
+      *(undefined *)(decoded_data_ptr + uVar1) = 0x20;
+      if (len_minus_one_x2 < uVar7) {
+        uVar6 = local_30 - 4;
+        uVar2 = len_minus_one_x2;
+        if (((local_34 < local_38 + 4 && local_38 < local_20 ||
+             uVar6 < local_20 && local_34 < local_30) || local_24 < 6) ||
+           (((local_34 | local_38 | uVar6) & 3) != 0)) {
+          do {
+            uVar6 = uVar2 + 1;
+            *(byte *)(decoded_data_ptr + uVar2) =
+                 *(byte *)(encoded_data + uVar2) ^ 0xcc ^ *(byte *)(buffer + 1 + uVar2);
+            uVar2 = uVar6;
+          } while (uVar7 != uVar6);
+        }
+        else {
+          uVar3 = 0;
+          uVar5 = (local_24 - 4 >> 2) + 1;
+          uVar2 = uVar5 * 4;
+          do {
+            *(uint *)(local_34 + uVar3 * 4) =
+                 *(uint *)(local_38 + uVar3 * 4) ^ 0xcccccccc ^ *(uint *)(uVar6 + uVar3 * 4);
+            uVar3 = uVar3 + 1;
+          } while (uVar3 < uVar5);
+          iVar4 = len_minus_one_x2 + uVar2;
+          if (((uVar2 != local_24) &&
+              (*(byte *)(decoded_data_ptr + iVar4) =
+                    *(byte *)(encoded_data + iVar4) ^ 0xcc ^ *(byte *)(buffer + 1 + iVar4),
+              iVar4 + 1U < uVar7)) &&
+             (*(byte *)(decoded_data_ptr + 1 + iVar4) =
+                   *(byte *)(encoded_data + 1 + iVar4) ^ 0xcc ^ *(byte *)(buffer + 2 + iVar4),
+             iVar4 + 2U < uVar7)) {
+            *(byte *)(decoded_data_ptr + 2 + iVar4) =
+                 *(byte *)(encoded_data + 2 + iVar4) ^ 0xcc ^ *(byte *)(buffer + 3 + iVar4);
+          }
+        }
+      }
+      len_minus_one_x2 = len_minus_one_x2 + 1;
+      local_38 = local_38 + 1;
+      local_34 = local_34 + 1;
+      local_24 = local_24 - 1;
+      local_20 = local_20 + 1;
+      local_30 = local_30 + 1;
+      *(byte *)(decoded_data_ptr + uVar1) =
+           *(byte *)(encoded_data + uVar1) ^ *(byte *)(buffer + uVar1);
+      uVar1 = uVar1 + 1;
+    } while (len_minus_1 != uVar1);
+  }
+  *(undefined *)(decoded_data_ptr + -1 + len) = 0;
+  return;
+}
+
+It’s tough to follow what is happening here but the final output of this is being printed to the screen along with the strings that indicate a successful password was entered. I wanted to trigger this condition so I patched the strncmp so it always succeeds and exported the binary. This time when I ran it, it said that the password was correct but the flag was not printed correctly because it is dependent on what you enter as the password. I then turned my focus to the strncmp to see what it would take to make it succeed.
+
+The second parameter to the strncmp was data located at &DAT_00407020. When I looked to see where this was set, I found this code:
+
+puVar4 = &DAT_004060d4;
+data_len = 0;
+while( true ) {
+  (&DAT_00407020)[data_len] = puVar4[data_len];
+  uVar1 = data_len + 2;
+  (&DAT_00407021)[data_len] = puVar4[data_len + 1];
+  if (uVar1 == 0x28) break;
+  puVar4 = *(undefined1 **)(&UNK_004065c0 + (uVar1 >> 1) * 4);
+  data_len = uVar1;
+}
+
+The value at DAT_004060d4 is one of the hex strings I saw before in the strings output. And &UNK_004065c0 is the base address to pointers to the rest of the hex strings. At this point I realized that these strings were 40 characters long and if interpreted as hex, they would be 20 bytes each. This matches the output length of sha1 hashes.
+
+I used an online hash cracker to get their values (https://crackstation.net/):
+
+hash                                      type  result
+931672ef8007efadcb5edabc82ccf760b4ad1e29	sha1	zeroes
+c60266a8adad2f8ee67d793b4fd3fd0ffd73cc61	sha1	computer
+d3bd1eb71f1f14f75f7e71cdad5fe0f5ade07f52	sha1	worm
+fdddbaa4a5451f116b1dd3dd1289a04e50e968bc	sha1	geeks
+edcaef342de393ea82accad611d1c1b4242d2b36	sha1	liars
+e97ba6aed5561a3d7fa95bc8f799387219d9c1e7	sha1	cable
+e660ef2f99888ce5e7e2884d4193540d2b1fd0b4	sha1	scams
+5ae8db5b72c7e3536f259a005b63117cbbca0505	sha1	kilobytes
+47265105ec5517e46aec2ed5310c177e1e811af8	sha1	downloaded
+680254bad1d7ca0d65ec46aaa315d363abf6a50a	sha1	tar
+f3ac5f0709efe8be7fccedc4955eb354dce78d24	sha1	latent
+fb10549407078744164d6102c809ccd50cc87de8	sha1	tanker
+e85e7aea15b160d4c482e06f253752bd77d8ef8e	sha1	secretively
+7d65c1633ac5383c94fb21b067fdf30aa10bc1fe	sha1	hacks
+31216940d23924a5761bff2a101893cfccfc625d	sha1	processors
+7994ebae30a63934992a16deca856d50596bc1a9	sha1	hex
+4504274f6214a3c420396e17ce5edf044344baf1	sha1	keystroke
+4fb2f4c43c90a51b4cafec65661c7274e45b770c	sha1	exploitative
+1b8cb242f7e28133bae0adefa873aa170486cb42	sha1	switchboard
+
+I tried some of the potential passwords but none of them worked. I took another look at the code that constructed the data that was being strncmped to the hash and realized what the code was doing. It tuned out that the real hash that was being compared was a byte from each of the previous hashes in the list on the diagonal. So take 0x93 from the first hash, 0x02 from the second, 0x1e from the third and so on. This worked out to create a new sha1 hash since there were 20 hashes total and we took one bytes from each hash. Instead of doing this by hand I recreated the code in python to get the exact value of this hash:
+
+hashes = [
+    "931672ef8007efadcb5edabc82ccf760b4ad1e29",
+    "249cec6cc0daeb14e340af88f39a8d2b56799fe7",
+    "c60266a8adad2f8ee67d793b4fd3fd0ffd73cc61",
+    "d3bd1eb71f1f14f75f7e71cdad5fe0f5ade07f52",
+    "fdddbaa4a5451f116b1dd3dd1289a04e50e968bc",
+    "edcaef342de393ea82accad611d1c1b4242d2b36",
+    "e97ba6aed5561a3d7fa95bc8f799387219d9c1e7",
+    "e660ef2f99888ce5e7e2884d4193540d2b1fd0b4",
+    "5ae8db5b72c7e3536f259a005b63117cbbca0505",
+    "47265105ec5517e46aec2ed5310c177e1e811af8",
+    "680254bad1d7ca0d65ec46aaa315d363abf6a50a",
+    "f3ac5f0709efe8be7fccedc4955eb354dce78d24",
+    "fb10549407078744164d6102c809ccd50cc87de8",
+    "e85e7aea15b160d4c482e06f253752bd77d8ef8e",
+    "7d65c1633ac5383c94fb21b067fdf30aa10bc1fe",
+    "31216940d23924a5761bff2a101893cfccfc625d",
+    "7994ebae30a63934992a16deca856d50596bc1a9",
+    "4504274f6214a3c420396e17ce5edf044344baf1",
+    "4fb2f4c43c90a51b4cafec65661c7274e45b770c",
+    "1b8cb242f7e28133bae0adefa873aa170486cb42",
+]
+
+def get_strcmp_rval():
+    result = ""
+    for i in range(20):
+        result += hashes[i][2 * i : 2 * i + 2]
+    print(result)
+
+if __name__ == "__main__":
+    get_strcmp_rval()
+
+When I ran the code I got 939c66b7a5e31ae56fec46c4c837f3cf59447742. I then ran this though the online hash cracker and I got the password HackThePlanet. I tried that password and got the flag:
+
+flag{Th1s is our w0rld now-w0rld of th3 electron and th3 sw1tch}

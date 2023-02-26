@@ -1,0 +1,132 @@
+I unzipped the archive to reveal a bin file called i-am-in-control.bin. I ran the file command on it to determine what type of file it was:
+
+i-am-in-control.bin: Sega Mega Drive / Genesis ROM image: "I Am In Control " (GM 13371337-00, (c) CC-SW 2019  )
+
+It looks like another Sega genesis rom file like what we got in the badge and pin problem.
+
+I ran strings on the bin file to see if I could find anything interesting. But this time there was not much:
+1. SEGA GENESIS    (c) CC-SW 2019  I Am In Control
+2. I Am In Control
+3. GM 13371337-00>
+4. Nintendo sucks!!!
+
+I loaded the rom in a sega genesis emulator (I used gens again). Once it loaded, there was a picture, a message to the player, and a red dot cursor that could be moved with the arrow keys. The A, S, D, and ENTER keys could be pressed on the keyboard and a message (taunt) is be printed to the user. I did not see any of these strings in the binary so I guessed they were encoded somehow (maybe mapped to sprites?).
+
+I opened up the binary in ghidra and selected 68000 as the processor type as I did before with the badge and pin problem. I used the GenesisVectorTable.java ghidra script to get better disassemble of the rom and find the entry point at 0x200. I found this script in a github repo that was linked to a tutorial about genesis rom disassembly (https://github.com/zznop/ghidra_scripts).
+
+At the beginning of the entry point function there are some calls which look like setup and did not seem to be very interesting, so I kept reading on. Towards the end of the entry point function, I saw what looked like the main game loop:
+
+do {
+  do {
+    FUN_000002d4();
+    if ((ushort)(unaff_D7w & 0xff00 | (ushort)DAT_00ff0006) != 0) {
+      FUN_000003a0();
+    }
+    unaff_D7w = 0;
+  } while ((DAT_00ff0008 & 0xf0) == 0);
+  if (((DAT_00ff0008 & 0x10) == 0) || (unaff_D7w = 0, (DAT_00ff0008 & 0x20) == 0)) {
+    unaff_D7w = 0;
+    FUN_00000774();
+  }
+  else {
+    win_func();
+  }
+} while( true );
+
+There was a branch inside the game loop that looks like it executes one function or the other (I named the other the win_func once I figured out what it was doing). The first function is executed if the values at DAT_00ff0008 ANDed with 0x10 or 0x20 are zero, otherwise the second function is called.
+
+Looked at the first function decompilation:
+
+void FUN_00000774(void)
+{
+  short sVar1;
+  
+  FUN_00000758();
+  _VDP_CONTROL = 0x49020003;
+  sVar1 = _DAT_00ff0010 + 1;
+  if (3 < sVar1) {
+    sVar1 = 0;
+  }
+  _DAT_00ff0010 = sVar1;
+  if (sVar1 == 0) {
+    FUN_000007c6();
+  }
+  if (sVar1 == 1) {
+    FUN_00000964();
+  }
+  if (sVar1 == 2) {
+    FUN_00000ada();
+  }
+  if (sVar1 == 3) {
+    FUN_00000cd8();
+  }
+  return;
+}
+
+It looks like different functions are called depending on the value in _DAT_00ff0010, but none of the functions looked too interesting, so I moved on. Back up a level, I looked at the second function and it looked interesting because it was doing some XOR operations:
+
+void win_func(void)
+{
+  ushort win_check_val;
+  short i;
+  short special_check_of_i;
+  ushort *pointer_to_data;
+  
+  win_check_val = _DAT_00ff000c | _DAT_00ff000a << 4;
+  if (((win_check_val ^ DAT_00008f64) == 0x6363) &&
+     (pointer_to_data = &DAT_00008f68, (win_check_val ^ DAT_00008f66) == 0x7377)) {
+    FUN_00000758();
+    _VDP_CONTROL = 0x49020003;
+    i = 0x35;
+    special_check_of_i = 0;
+    do {
+      if (special_check_of_i == 0x1e) {
+        _VDP_CONTROL = 0x49820003;
+      }
+      _VDP_DATA = win_check_val ^ *pointer_to_data;
+      special_check_of_i = special_check_of_i + 1;
+      i = i + -1;
+      pointer_to_data = pointer_to_data + 1;
+    } while (i != -1);
+  }
+  return;
+}
+
+I called it the win function because it looks like it is doing some XOR operations (decoding a flag maybe?). It has a single branch otherwise it returns immediately. In order to satisfy the branch, the value at _DAT_00ff000c ORed with _DAT_00ff000a << 4 needs to equal 0x6363 (cc) after being XORed with the data at DAT_00008f64. And also equal to 0x7377 (sw) after being XORed with DAT_00008f66.
+
+Based on this, I figured out what the DAT_00ff000c | _DAT_00ff000a << 4 value will need to be so this branch is taken:
+
+DAT_00008f64 = 0x7bed
+DAT_00008f66 = 0x6bf9
+
+x ^ 0x7bed = 0x6363
+x ^ 0x6bf9 = 0x7377
+
+x = 0x7bed ^ 0x6363 = 0x188E
+x = 0x6bf9 ^ 0x7377 = 0x188E
+
+Given that I know what the value will be, I decided to write a quick script to calculate what is being done when the branch is taken. The pointer_to_data is set to the data at DAT_00008f68 and then XORed with the win_check_val (0x188E). Unfortunately, I didn't get ascii text from this, but it makes sense since this is assigned to _VDP_DATA (maybe telling what text sprites to load?). But here is the code anyways:
+
+encoded = ["1a", "96", "1a", "90", "1a", "9d", "1a", "97", "1a", "a2", "1a", "92", "1a", "8c", "1a", "8d", "1a", "ae", "1a", "a5", "1a", "91", "1a", "8b", "1a", "a5", "1a", "94", "1a", "a9", "1a", "91", "1a", "88", "1a", "ae", "1a", "a5", "1a", "88", "1a", "ae", "1a", "98", "1a", "a5", "1a", "a7", "1a", "8b", "1a", "a5", "1a", "9b", "1a", "88", "1a", "ae", "1a", "a5", "1a", "aa", "1a", "a9", "1a", "90", "1a", "8b", "1a", "a5", "1a", "a8", "1a", "8c", "1a", "97", "1a", "8b", "1a", "a8", "1a", "94", "1a", "8b", "1a", "aa", "1a", "a5", "1a", "85", "1a", "88", "1a", "96", "1a", "85", "1a", "9d", "1a", "85", "1a", "98", "1a", "85", "1a", "a3"]
+
+if __name__ == "__main__":
+    for i in range(0, 106, 2):
+        ebytes = encoded[i:i+2]
+        evalhex = int.from_bytes(bytes.fromhex(ebytes[0] + ebytes[1]), "big")
+        decoded = 0x188e ^ evalhex
+        decoded_bytes = decoded.to_bytes(2, "big")
+        print(f"{decoded_bytes}")
+
+At this point I wanted to figure out what it would take to trigger this condition so I can see what happens. So I calculated the values that would need to be at _DAT_00ff000c and _DAT_00ff000a:
+
+win_check_val = _DAT_00ff000c | _DAT_00ff000a << 4 = 0x188E
+
+_DAT_00ff000c = 0x008E
+_DAT_00ff000a << 4 = 0x1800
+_DAT_00ff000a = 0x1800 >> 4 = 0x0180
+
+Now I went back to the emulator and loaded the debug view which shows the current values in ram. I found address ff000c and ff000a and noticed the values change when I move the cursor in the game. I moved the cursor so these values align with what I calculated above, but I did not get the flag at this point. I remembered that this function was only ever called when DAT_00ff0008 & 0x10 == 0 || DAT_00ff0008 & 0x20 == 0. When I looked at this address in memory, I noticed its value changed quickly when I pressed a button (either A, S, D, or ENTER) on my keyboard. I tried pressing the buttons individually, but I did not get the flag. I then realized that maybe a combination might result in the correct value being written to DAT_00ff0008. I tried all combination and I eventually got the flag print out when I pressed the S and D keys together a few times.
+
+FLAG{J01N_M3_HUM4N_4ND_W3_C4N_RUL3_T0G3TH3R_94F9A9D9}
+
+I tried this on the careers site, but it looks like it is wrong. It follows the flag format, but the last few characters don't match the message, so I think I will have to dig deeper to figure this one out.

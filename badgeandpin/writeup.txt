@@ -1,0 +1,190 @@
+The first thing I did after downloading the bin file was to check it with the file command. I got the following output:
+badge-and-pin.bin: Sega Mega Drive / Genesis ROM image: "BADGE AND PIN   " (v1.0.0        , (c) CC-SW 2020  )
+
+Based on the output it looked like it was a sega genesis rom file, but I still wasn't sure. So I ran strings on it and got some useful results:
+Nu .#_{}0123456789$-=>>YZABCDEFGHIJKLMNOPQRSTUVWX
+K.HOFFER
+ID 1F03F349
+KEY IN CODE               
+ACCESS DENIED
+SECURITY HAS BEEN ALERTED
+Nintendo sucks! (pretty sure it was a sega genesis rom when I saw this)
+
+Now that I was confident that the bin file was a sega genesis rom, I tried opening it up with a Sega Genesis emulator (I used the gens emulator). It loaded successfully and displayed a login prompt. The prompt was only active for a short time before security was alerted.
+
+I loaded up the rom in ghidra and selected 68000 as the processor (what the genesis used). I found a useful guide on sega genesis rom disassembly at https://allthingsreversed.io/solving-sega-genesis-rom-ctf-challenge/. In the tutorial there was a link to a github repo that had some useful ghidra scripts (https://github.com/zznop/ghidra_scripts). I used the GenesisVectorTable.java script to get a better disassembly in ghidra. Most importantly, the script helped me identify the entry point:
+
+PtrProgramStart
+00000004 00 00 02 00     uint       200h
+
+I was unfamiliar with the instruction set but the decompilation view was useful. I started tracing through the code and relabeling as I went. Eventually, I found a function that looked like it was printing two lines of text, a picture, and a final line of text. This matches what we are shown when we first start the rom. I relabeled the calls (shown below):
+
+void show_init_screen(void)
+{
+  undefined2 local_6;
+  undefined2 local_4;
+  undefined2 local_2;
+  
+  local_6 = 0x2f;
+  local_4 = 0x10;
+  local_2 = 0x10;
+  print_text(0xf,1,0xe7a);
+  print_text(0xd,2,0xe83);
+  print_pic(0x42180003,&local_6);
+  print_text(0xd,0x14,0xe8f);
+  return;
+}
+
+Then I found a function that is an infinite loop with a single interesting call inside. This must be the main game loop (see below):
+
+void main_loop(void)
+{
+  do {
+    do {
+      nothing();
+    } while (DAT_fffff600 != '\0');
+    loop_func();
+  } while( true );
+}
+
+I navigated into the loop function and found some branches that print text and update a location in memory (-0x9db or 0xf625). My guess is that this handles the user input for the pin? There is a final condition check that leads to a function call that leads up to the function that prints the flag (more on this later). I called this the prewin_func because it is right before you win the game. I also wanted to trigger this code path without typing in the right pin so I patched the condition check to be the opposite so it will take the branch. I commented where I did this in the code below.
+
+void loop_func(void)
+{
+  byte local_1;
+  
+  local_1 = some_data_base_addr;
+  if ((DAT_00ff0002 & 0x40) == 0) {
+    if ((DAT_00ff0002 & 0x10) != 0) {
+      print_text(some_data_base_addr + 4,0x16,0xeac);
+      *(undefined *)(local_1 - 0x9db) = 0;
+      local_1 = local_1 + 1;
+    }
+  }
+  else {
+    print_text(some_data_base_addr + 4,0x16,0xeaa);
+    *(undefined *)(local_1 - 0x9db) = 1;
+    local_1 = local_1 + 1;
+  }
+  some_data_base_addr = local_1;
+  if (local_1 == 0x20) { // <------- Patch Here changed to !=
+    prewin_func();
+    print_text(4,0x16,0xeae);
+    some_data_base_addr = 0;
+  }
+  return;
+}
+
+
+Navigating into the prewin_func, I found three calls. The first one looked like it was getting the pin/key from memory at the same location we were updating before (-0x9db or 0xf625). The next two calls where checking to see if the key was correct. And a final condition check guards the function which will print out the flag. I patched this to be the opposite so it will execute even with the wrong pin (see below).
+
+void prewin_func(void)
+{
+  undefined4 key;
+  int local_4;
+  
+  key = key_calc();
+  local_4 = check_right_key(0,0xf1c,0x100);
+  local_4 = check_right_key(local_4,&key,4);
+  if (local_4 == 0x2aee3b20) { // <------- Patch Here changed to !=
+    win_func(key);
+  }
+  return;
+}
+
+The win function that prints out the flag was interesting. It looks like it was taking the key derived from the pin and using it to decode a section in memory at 0xef8. It does it four bytes at a time and used the current four bytes as the key for decoding the next four. But it doesn't chain the result, so we can just decode everything past the first four bytes without having to know the key. After everything is done, it ends on an infinite loop (displays the flag and waits forever).
+
+void win_func(uint initial_key)
+{
+  uint decoded_flag [36];
+  uint i;
+  
+  for (i = 0; i < 9; i = i + 1) {
+    decoded_flag[i] = initial_key ^ *(uint *)(i * 4 + 0xef8) ^ 0xaaaaaaaa;
+    initial_key = *(uint *)(i * 4 + 0xef8);
+  }
+  FUN_000003e4(0);
+  print_text(2,0xc,decoded_flag);
+  do {
+                    /* WARNING: Do nothing block with infinite loop */
+  } while( true );
+}
+
+At this point I had patched the two spots needed to skip the security check and jump straight to displaying the key. I exported the patched binary and ran it with the sega genesis emulator and got the key (sort of):
+{W3LC0M3_T0_TH3_G3NY_R3V0LUT10N}
+
+The first four bytes (presumably "FLAG") did not display (as expected since our initial key value is wrong).
+
+In order to double check my understanding of the decompiled code above I wanted to replicate the decoding logic and verify I get the same results. So I found the encoded flag bytes in memory at 0xef8:
+
+DAT_00000ef8
+00000ef8 af              ??         AFh
+00000ef9 85              ??         85h
+00000efa de              ??         DEh
+00000efb ba              ??         BAh
+00000efc 7e              ??         7Eh    ~
+00000efd 78              ??         78h    x
+00000efe 47              ??         47h    G
+00000eff 5c              ??         5Ch    \
+00000f00 97              ??         97h
+00000f01 e2              ??         E2h
+00000f02 a0              ??         A0h
+00000f03 c5              ??         C5h
+00000f04 62              ??         62h    b
+00000f05 1c              ??         1Ch
+00000f06 3a              ??         3Ah    :
+00000f07 30              ??         30h    0
+00000f08 9c              ??         9Ch
+00000f09 fe              ??         FEh
+00000f0a a3              ??         A3h
+00000f0b c5              ??         C5h
+00000f0c 71              ??         71h    q
+00000f0d 67              ??         67h    g
+00000f0e 47              ??         47h    G
+00000f0f 36              ??         36h    6
+00000f10 84              ??         84h
+00000f11 9f              ??         9Fh
+00000f12 de              ??         DEh
+00000f13 ca              ??         CAh
+00000f14 1e              ??         1Eh
+00000f15 79              ??         79h    y
+00000f16 21              ??         21h    !
+00000f17 34              ??         34h    4
+00000f18 85              ??         85h
+00000f19 e3              ??         E3h
+00000f1a c5              ??         C5h
+00000f1b e3              ??         E3h
+
+Then I wrote a quick python script to replicate the decoding logic (see below):
+
+if __name__ == "__main__":
+    # Encoded flag bytes taken from address 0x0ef8 (36 bytes)
+    encoded_flag = (
+        "af85deba7e78475c97e2a0c5621c3a309cfea3c571674736849fdeca1e79213485e3c5e3"
+    )
+    const_xor_factor = 0xAAAAAAAA
+    result = b""
+
+    # Key 4 bytes (dont care what it is since it is only used to decode the first 4 bytes)
+    key = 0xDEADBEEF
+
+    # Do the same thing the decoding code is doing in the rom
+    for i in range(9):
+        # Take 4 bytes at a time from the encoded flag and cast as int
+        encoded_bytes = bytes.fromhex(encoded_flag[i * 8 : i * 8 + 8])
+
+        # Big endian to match sega saturn processor
+        encoded_bytes_as_int = int.from_bytes(encoded_bytes, "big")
+
+        # Decode
+        decoded_int = encoded_bytes_as_int ^ key ^ const_xor_factor
+        decoded_bytes = decoded_int.to_bytes(4, "big")
+        result += decoded_bytes
+
+        # Update the key for next iteration
+        key = encoded_bytes_as_int
+
+    print(result)
+
+I ran the code and got the same result, minus the first four bytes of output:
+b'\xdb\x82\xca\xff{W3LC0M3_T0_TH3_G3NY_R3V0LUT10N}'
